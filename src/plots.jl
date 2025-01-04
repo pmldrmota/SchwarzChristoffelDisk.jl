@@ -6,10 +6,11 @@ function draw_polygon(p::Polygon, ax)
     N = Size(p.w)[1]
     γ = angle(p.w[begin] - p.w[end]) .+ π .* cumsum(p.β)
     v = [p.w[end]]
-    ℓmax = maximum(x for x in p.ℓ if !isinf(x))
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    R = max(xlim[2] - xlim[1], ylim[2] - ylim[1])
     for (k, wk) ∈ enumerate(p.w)
         if isinf(wk)
-            R = ℓmax / 2
             ax.plot(real.(v), imag.(v); color=:black)
             v = [v[end], v[end] + R * cis(γ[mod1(k - 1, N)])]
             ax.plot(real.(v), imag.(v); color=:black, linestyle=":")
@@ -50,9 +51,6 @@ function sc_plot(f, rpoints, θpoints)
     ax[1].set_aspect("equal")
     ax[2].set_aspect("equal")
 
-    # polygon
-    sc_draw_polygon!(f, ax[1])
-
     # plot the transformation
     for r ∈ range(0, 1, rpoints + 2)[begin+1:end-1]
         θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
@@ -60,6 +58,9 @@ function sc_plot(f, rpoints, θpoints)
         ws = trafo.(zs)
         ax[1].plot(real.(ws), imag.(ws))
     end
+
+    # polygon
+    sc_draw_polygon!(f, ax[1])
 
     # center point
     ax[1].scatter([0], [0])
