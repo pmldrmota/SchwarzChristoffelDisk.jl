@@ -63,7 +63,7 @@ function sc_plot(f, rpoints, θpoints)
     sc_draw_polygon!(f, ax[1])
 
     # center point
-    ax[1].scatter([0], [0])
+    ax[1].scatter([0], [0], marker="x")
 
     # prevertices
     ax[2].scatter(real.(f.z), imag.(f.z))
