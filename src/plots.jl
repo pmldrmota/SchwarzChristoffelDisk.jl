@@ -35,10 +35,8 @@ function sc_draw_polygon!(f, ax)
     maxrange = max(xlim[2] - xlim[1], ylim[2] - ylim[1])
 
     function rescale(lims)
-        μ = abs(lims[2] + lims[1]) / 2
-        δ = abs(lims[2] - lims[1]) / 2
-        m = maxrange / (2δ)
-        tuple((@. μ + m * [-δ, δ])...)
+        μ = (lims[2] + lims[1]) / 2
+        (μ - maxrange / 2, μ + maxrange / 2)
     end
 
     ax.set_xlim(rescale(xlim))
