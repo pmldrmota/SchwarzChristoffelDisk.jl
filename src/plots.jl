@@ -52,18 +52,21 @@ function sc_plot(f, rpoints, θpoints)
     ax[2].set_aspect("equal")
 
     # plot the transformation
-    for r ∈ range(0, 1, rpoints + 2)[begin+1:end-1]
+    cmap = get_cmap("Spectral")
+    num_colors = rpoints + 1
+    colors = [cmap(i / num_colors) for i=num_colors:-1:1]
+    for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[begin+1:end-1])
         θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
         zs = cis.(θ) .* r
         ws = trafo.(zs)
-        ax[1].plot(real.(ws), imag.(ws))
+        ax[1].plot(real.(ws), imag.(ws), color=colors[i+1])
     end
 
     # polygon
     sc_draw_polygon!(f, ax[1])
 
     # center point
-    ax[1].scatter([0], [0], marker="x")
+    ax[1].scatter([0], [0], marker=".", color=colors[1])
 
     # prevertices
     ax[2].scatter(real.(f.z), imag.(f.z))
