@@ -1,4 +1,7 @@
-export sc_first_derivative, sc_second_derivative, sc_inv_first_three_derivatives
+export sc_first_derivative,
+    sc_second_derivative,
+    sc_third_derivative,
+    sc_inv_first_three_derivatives
 
 sc_term(zk, α, zv) = (1 - zv / zk)^α
 
