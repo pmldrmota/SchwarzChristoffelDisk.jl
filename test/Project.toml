@@ -1,0 +1,4 @@
+[deps]
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+TaylorSeries = "6aa5eb33-94cf-58f4-a9d0-e4b2c4fc25ea"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
