@@ -1,7 +1,6 @@
-export sc_first_derivative,
-    sc_second_derivative,
-    sc_third_derivative,
-    sc_inv_first_three_derivatives
+export sc_first_derivative, sc_taylor_series
+
+using TaylorSeries
 
 sc_term(zk, α, zv) = (1 - zv / zk)^α
 
@@ -66,17 +65,10 @@ function sc_third_derivative(f, zv, d1=sc_first_derivative(f, zv), d2=sc_second_
     d1 * quotient_rule(f, zv) + d2^2 / d1
 end
 
-"""Evaluate the first three derivatives of the inverse transformation
-
-Using Lagrange inversion theorem
-    f(z) = a₁z + a₂z² + a₃z³ + ⋯  -->  f⁻(w) = A₁w + A₂w² + A₃w³ + ⋯
-"""
-function sc_inv_first_three_derivatives(f, zv)
+"""4th-order Taylor series around `zv`"""
+function sc_taylor_series(f, zv)
     ∂₁ = sc_first_derivative(f, zv)
     ∂₂ = sc_second_derivative(f, zv, ∂₁)
     ∂₃ = sc_third_derivative(f, zv, ∂₁, ∂₂)
-    a₁ = ∂₁
-    a₂ = ∂₂ / 2
-    a₃ = ∂₃ / 6
-    (1 / a₁, -2a₂ / a₁^3, 6 * (2a₂^2 - a₁ * a₃) / a₁^5)
+    Taylor1([0, ∂₁, ∂₂ / 2, ∂₃ / 6])
 end
