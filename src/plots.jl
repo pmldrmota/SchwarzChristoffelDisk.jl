@@ -54,7 +54,7 @@ function sc_plot(f, rpoints, θpoints, cmap = "Spectral")
     # plot the transformation
     colormap = get_cmap(cmap)
     num_colors = rpoints + 2
-    colors = [colormap(i / num_colors) for i = num_colors:-1:1]
+    colors = [colormap((i - 1) / (num_colors - 1)) for i = 1:num_colors]
     for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[begin+1:end-1])
         θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
         zs = cis.(θ) .* r
