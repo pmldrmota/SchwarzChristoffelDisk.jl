@@ -3,6 +3,7 @@ module SCTest
 using Test
 using SchwarzChristoffelDisk
 using TaylorSeries
+using StaticArrays
 
 @testset "Derivatives" begin
     z1 = complex(0.2, 0.4)
@@ -39,6 +40,35 @@ using TaylorSeries
     @test getcoeff(taylor, 1) ≈ complex(1.0691869766674431, -0.12708193500252732)
     @test getcoeff(taylor, 2) ≈ complex(0.024420875807490826, -0.30506287944280847)
     @test getcoeff(taylor, 3) ≈ complex(0.08634209350133563, 0.05909308433623032)
+end
+
+@testset "Polygon" begin
+    # Finite case
+    poly = Polygon(SA[0, 1, 1im])
+    @test poly.β == [0.5, 0.75, 0.75]
+    @test poly.ℓ == [1.0, sqrt(2), 1.0]
+
+    # Infinite case
+    poly = Polygon(SA[1.0, 1.0im, Inf], SA[1/4, 1/4, 2-2/4])
+    @test poly.β == [0.25, 1.5, 0.25]
+    @test poly.ℓ == [Inf, Inf, sqrt(2)]
+end
+
+@testset "Transformation" begin
+    # Square
+    f = SchwarzChristoffel(SA[0, π/2, π, 3π/2], SA[1/2, 1/2, 1/2, 1/2])
+    a = 1.3110287771438591
+    @test sc_test_ok(f, [a, 1im * a, -a, -1im * a])
+end
+
+@testset "ParameterProblem" begin
+    # Finite case
+    poly = Polygon(SA[1.0+0.5im, 0.1+1.0im, -(1.0 + 0.5im), -(0.1 + 1.0im)])
+    @test_nowarn sc_parameter_problem(poly)
+
+    # Infinite case
+    poly = Polygon(SA[1.0, 1.0im, Inf], SA[1/3, 1/3, 2-2/3])
+    @test_nowarn sc_parameter_problem(poly)
 end
 
 end  # module
