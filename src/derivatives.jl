@@ -65,10 +65,26 @@ function sc_third_derivative(f, zv, d1=sc_first_derivative(f, zv), d2=sc_second_
     d1 * quotient_rule(f, zv) + d2^2 / d1
 end
 
-"""4th-order Taylor series around `zv`"""
-function sc_taylor_series(f, zv)
+"""nth-order Taylor series around `zv`"""
+function sc_taylor_series(f, zv, n = 3)
+    if n == 0
+        return Taylor1([0])
+    end
+
     ∂₁ = sc_first_derivative(f, zv)
+    if n == 1
+        return Taylor1([0, ∂₁])
+    end
+
     ∂₂ = sc_second_derivative(f, zv, ∂₁)
+    if n == 2
+        return Taylor1([0, ∂₁, ∂₂ / 2])
+    end
+
     ∂₃ = sc_third_derivative(f, zv, ∂₁, ∂₂)
-    Taylor1([0, ∂₁, ∂₂ / 2, ∂₃ / 6])
+    if n == 3
+        return Taylor1([0, ∂₁, ∂₂ / 2, ∂₃ / 6])
+    end
+
+    throw("$n-th order Taylor series not implemented")
 end

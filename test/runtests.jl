@@ -36,10 +36,19 @@ using StaticArrays
     @test SchwarzChristoffelDisk.sc_third_derivative(sc, z2) ≈
           complex(0.5180525610080138, 0.3545585060173819)
 
-    taylor = sc_taylor_series(sc, z2)
-    @test getcoeff(taylor, 1) ≈ complex(1.0691869766674431, -0.12708193500252732)
-    @test getcoeff(taylor, 2) ≈ complex(0.024420875807490826, -0.30506287944280847)
-    @test getcoeff(taylor, 3) ≈ complex(0.08634209350133563, 0.05909308433623032)
+    for n = 0:3
+        taylor = @test_nowarn sc_taylor_series(sc, z2, n)
+        @test getcoeff(taylor, 0) ≈ 0
+        if n ≥ 1
+            @test getcoeff(taylor, 1) ≈ complex(1.0691869766674431, -0.12708193500252732)
+        end
+        if n ≥ 2
+            @test getcoeff(taylor, 2) ≈ complex(0.024420875807490826, -0.30506287944280847)
+        end
+        if n ≥ 3
+            @test getcoeff(taylor, 3) ≈ complex(0.08634209350133563, 0.05909308433623032)
+        end
+    end
 end
 
 @testset "Polygon" begin
