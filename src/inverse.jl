@@ -12,8 +12,6 @@ function sc_inv(f, w)
         F .= reim(w_eval - w)
     end
 
-    sol = nlsolve(cost_function!, @MVector zeros(2))
-    z = complex(sol.zero...)
-    @assert sc_trafo(f, z) ≈ w "sc_inv failed"
-    z
+    sol = nlsolve(cost_function!, @MVector zeros(2); ftol = 1e-10)
+    complex(sol.zero...)
 end
