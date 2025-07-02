@@ -6,9 +6,7 @@ function draw_polygon(p::Polygon, ax, color = :black)
     N = Size(p.w)[1]
     γ = angle(p.w[begin] - p.w[end]) .+ π .* cumsum(p.β)
     v = [p.w[end]]
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    R = max(xlim[2] - xlim[1], ylim[2] - ylim[1])
+    R = maximum(filter(!isinf, abs.(p.w)))
     for (k, wk) ∈ enumerate(p.w)
         if isinf(wk)
             ax.plot(real.(v), imag.(v); color = color)
@@ -55,15 +53,16 @@ function sc_plot(f, rpoints, θpoints, cmap = "Spectral")
     colormap = get_cmap(cmap)
     num_colors = rpoints + 2
     colors = [colormap((i - 1) / (num_colors - 1)) for i = 1:num_colors]
+
+    # polygon
+    sc_draw_polygon!(f, ax[1], :black)
+
     for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[begin+1:end-1])
         θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
         zs = cis.(θ) .* r
         ws = trafo.(zs)
         ax[1].plot(real.(ws), imag.(ws), color = colors[i+1])
     end
-
-    # polygon
-    sc_draw_polygon!(f, ax[1], colors[end])
 
     # center point
     ax[1].scatter([0], [0], marker = ".", color = colors[begin])
