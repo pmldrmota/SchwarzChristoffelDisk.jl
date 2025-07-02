@@ -80,4 +80,11 @@ end
     @test_nowarn sc_parameter_problem(poly)
 end
 
+@testset "InverseTransformation" begin
+    f = SchwarzChristoffel(SA[0, π/2, π], SA[1, 1/2, 1/2])
+    z = -0.876 + 0.229
+    w = sc_trafo(f, z)
+    @test sc_inv(f, w) ≈ z
+end
+
 end  # module
