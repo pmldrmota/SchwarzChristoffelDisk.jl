@@ -65,7 +65,10 @@ function sc_third_derivative(f, zv, d1=sc_first_derivative(f, zv), d2=sc_second_
     d1 * quotient_rule(f, zv) + d2^2 / d1
 end
 
-"""nth-order Taylor series around `zv`"""
+"""nth-order Taylor series around `zv`
+
+Use `inverse()` to get the Taylor series of the inverse transformation.
+"""
 function sc_taylor_series(f, zv, n = 3)
     if n == 0
         return Taylor1([0])
