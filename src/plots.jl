@@ -2,47 +2,76 @@ export draw_polygon, sc_plot
 
 using StaticArrays, PyPlot
 
-function draw_polygon(p::Polygon, ax, color = :black)
+function draw_polygon(p::Polygon, ax; kwargs...)
     N = Size(p.w)[1]
     γ = angle(p.w[begin] - p.w[end]) .+ π .* cumsum(p.β)
     v = [p.w[end]]
-    R = maximum(filter(!isinf, abs.(p.w)))
+    R = 10 * maximum(filter(!isinf, abs.(p.w)))
     for (k, wk) ∈ enumerate(p.w)
         if isinf(wk)
-            ax.plot(real.(v), imag.(v); color = color)
+            ax.plot(real.(v), imag.(v); kwargs...)
             v = [v[end], v[end] + R * cis(γ[mod1(k - 1, N)])]
-            ax.plot(real.(v), imag.(v); color = color, linestyle = ":")
+            ax.plot(real.(v), imag.(v); kwargs..., linestyle = ":")
             v = [p.w[mod1(k + 1, N)] - R * cis(γ[k]), p.w[mod1(k + 1, N)]]
-            ax.plot(real.(v), imag.(v); color = color, linestyle = ":")
+            ax.plot(real.(v), imag.(v); kwargs..., linestyle = ":")
             empty!(v)
         else
             push!(v, wk)
         end
     end
-    ax.plot(real.(v), imag.(v); color = color)
+    ax.plot(real.(v), imag.(v); kwargs...)
 end
 
-function sc_draw_polygon!(f, ax, color)
+function fill_polygon(p::Polygon, ax; color = color, kwargs...)
+    N = Size(p.w)[1]
+    γ = angle(p.w[begin] - p.w[end]) .+ π .* cumsum(p.β)
+    R = 10 * maximum(filter(!isinf, abs.(p.w)))
+
+    function add_draw(x, y)
+        ax.fill([x; x[1]], [y; y[1]], color; kwargs...)
+    end
+
+    kinf1 = findfirst(isinf, p.w)
+    if isnothing(kinf1)
+        add_draw(real.(p.w), imag.(p.w))
+    else
+        v = ComplexF64[]
+        for k = kinf1:(kinf1+N+1)
+            this = mod1(k, N)
+            next = mod1(k + 1, N)
+            prev = mod1(k - 1, N)
+            if isinf(p.w[this])
+                if k > kinf1
+                    push!(v, v[end] + R * cis(γ[prev]))
+                    add_draw(real.(v), imag.(v))
+                    empty!(v)
+                end
+                push!(v, p.w[next] - R * cis(γ[this]))
+            else
+                push!(v, p.w[this])
+            end
+        end
+    end
+end
+
+function sc_draw_polygon!(f, ax, poly_fill=false; color = :black, kwargs...)
     N = Size(f.z)[1]
     ws = SVector{N,ComplexF64}([sc_trafo(f, zk) for zk ∈ f.z])
     poly = Polygon(ws, f.β)
-    draw_polygon(poly, ax, color)
-
-    # fix plot range to a square
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
-    maxrange = max(xlim[2] - xlim[1], ylim[2] - ylim[1])
-
-    function rescale(lims)
-        μ = (lims[2] + lims[1]) / 2
-        (μ - maxrange / 2, μ + maxrange / 2)
+    if poly_fill
+        fill_polygon(poly, ax; color = color, kwargs...)
+    else
+        draw_polygon(poly, ax; color = color, kwargs...)
     end
 
-    ax.set_xlim(rescale(xlim))
-    ax.set_ylim(rescale(ylim))
+    max_x = maximum(filter(!isinf, abs.(real.(poly.w))))
+    max_y = maximum(filter(!isinf, abs.(imag.(poly.w))))
+    maxrange = 1.2 * max(max_x, max_y)
+    ax.set_xlim((-maxrange, maxrange))
+    ax.set_ylim((-maxrange, maxrange))
 end
 
-function sc_plot(f, rpoints, θpoints, cmap = "Spectral")
+function sc_plot(f, rpoints, θpoints, cmap = "Spectral", poly_fill = false; kwargs...)
     trafo(z) = sc_trafo(f, z)
 
     fig, ax = subplots(1, 2)
@@ -55,7 +84,7 @@ function sc_plot(f, rpoints, θpoints, cmap = "Spectral")
     colors = [colormap((i - 1) / (num_colors - 1)) for i = 1:num_colors]
 
     # polygon
-    sc_draw_polygon!(f, ax[1], :black)
+    sc_draw_polygon!(f, ax[1], poly_fill; kwargs...)
 
     for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[begin+1:end-1])
         θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
