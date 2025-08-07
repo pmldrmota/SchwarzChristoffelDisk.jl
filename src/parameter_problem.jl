@@ -28,7 +28,7 @@ function sc_fix!(f, y, wN)
 end
 
 function sc_parameter_problem(polygon::Polygon{N,W,B,L}) where {N,W,B,L}
-    y₀ = @MVector randn(N - 1)
+    y₀ = @MVector zeros(N - 1)
     f = SchwarzChristoffel(y_to_θ(y₀), polygon.β)
 
     k_inf = findall(isinf, polygon.w)
