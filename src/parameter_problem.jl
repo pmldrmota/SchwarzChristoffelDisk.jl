@@ -8,17 +8,15 @@ using NLsolve, StaticArrays
 :param y: (n-1)-element array of unconstrained parameters
 """
 function y_to_θ(y)
-    y2 = 1 .+ cumsum(exp.(-cumsum(y)))
-    t = 2π / y2[end]
-    [t; t .* y2]
+    y2 = cumsum([1; exp.(-cumsum(y))])
+    t = 2 / y2[end]
+    t .* y2
 end
 
 """Fix the scaling constant of the Schwarz-Christoffel transformation and set the singularities from `y`
 """
 function sc_fix!(f, y, wN)
-    y2 = cumsum([1; exp.(-cumsum(y))])
-    t = 2 / y2[end]
-    @. f.z = cispi(t * y2)
+    f.z .= cispi.(y_to_θ(y))
     @assert !any(isnan(x) for x ∈ f.z) "sc_fix! got NaN output $(f.z) from $y"
 
     # evaluate image vertices with unit constant
