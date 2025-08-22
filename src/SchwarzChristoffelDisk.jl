@@ -1,6 +1,7 @@
 module SchwarzChristoffelDisk
 
 include("polygon.jl")
+include("polygon_symmetries.jl")
 include("derivatives.jl")
 include("transformation.jl")
 include("parameter_problem.jl")

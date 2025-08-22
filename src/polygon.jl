@@ -1,4 +1,4 @@
-export Polygon, find_polygon_symmetries
+export Polygon
 
 using StaticArrays
 
@@ -43,37 +43,4 @@ function Polygon(w::SVector{N,W}, β::SVector{N,B}) where {N,W,B}
         β = circshift(β, -k)
     end
     Polygon(SVector{N}(w), SVector{N}(β), SVector{N}(ℓ))
-end
-
-function find_polygon_symmetries(poly::Polygon{N,W,B,M}) where {N,W,B,M}
-    # go through all possible rotational symmetries, excluding trivial one
-    rot_syms = Float64[]
-    for k=2:N
-        # rotation by 2π/k
-        poly_rot = cispi(2 / k) * poly.w
-        # check permutations for congruence
-        if any(all(poly_rot .≈ circshift(poly.w, i)) for i=0:N-1)
-            push!(rot_syms, 2π / k)
-        end
-    end
-
-    "Reflect `w` about an axis given by the polar angle `ϕ`"
-    reflect(axis, w) = axis * conj(axis' * w)
-
-    unique_modpi(x) = unique(x -> round(x, sigdigits=10), mod2pi.(2 * x) / 2)
-
-    ϕ_ℓ = unique_modpi(angle.((poly.w .+ circshift(poly.w, 1)) / 2))
-    ϕ_w = [x for x ∈ unique_modpi(angle.(poly.w)) if x ∉ ϕ_ℓ]
-
-    # go through all possible rotational symmetries
-    refl_syms = Float64[]
-    for ϕ ∈ [ϕ_w; ϕ_ℓ]
-        # rotation by 2π/k
-        poly_reflect = reverse(reflect.(cis(ϕ), poly.w))
-        # check permutations for congruence
-        if any(all(poly_reflect .≈ circshift(poly.w, i)) for i=0:N-1)
-            push!(refl_syms, ϕ)
-        end
-    end
-    (rot_syms, refl_syms)
 end
