@@ -37,9 +37,19 @@ end
 :param w: vertices of the polygon
 :returns: instance of a subtype of AbstractSymmetry
 """
-function classify_symmetry(w::SVector{N}) where {N}
-    # todo: is_congruent can be optimised to avoid allocations in circshift.
-    is_congruent(nodes) = any(all(nodes .≈ circshift(w, i)) for i ∈ 0:N-1)
+function classify_symmetry(w::SVector{N}, β::SVector{N}) where {N}
+    # precompute circshifts
+    circshifts_w = SMatrix{N}((w[mod1(i - k, N)] for k ∈ 1:N for i ∈ 1:N)...)
+    circshifted_β_equal = SMatrix{N}((β[mod1(i - k, N)] ≈ β[i] for k ∈ 1:N for i ∈ 1:N)...)
+
+    is_approx_equal(node, shifted_node, β_equal) =
+        isinf(node) && isinf(shifted_node) && β_equal || node ≈ shifted_node
+
+    is_congruent(nodes) = any(
+        all(is_approx_equal.(nodes, sw, sβ)) for
+        (sw, sβ) ∈ zip(eachcol(circshifts_w), eachcol(circshifted_β_equal))
+    )
+
     is_rotational_symmetry(k) = is_congruent(cispi(2 / k) * w)
     is_mirror_symmetry(α) = is_congruent(reverse(@. α * conj(α' * w) / abs2(α)))
 
@@ -86,7 +96,7 @@ struct Polygon{N,S<:AbstractSymmetry,W,F}
     ℓ::SVector{N,F}  # length of edges [i,i+1]
 
     function Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F}
-        sym = classify_symmetry(w)
+        sym = classify_symmetry(w, β)
         new{N,typeof(sym),W,F}(w, sym, β, ℓ)
     end
 end
