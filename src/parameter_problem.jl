@@ -25,12 +25,14 @@ function sc_fix!(f, θ, wN)
     f.c = wN / sc_trafo(f, f.z[end])
 end
 
+# dispatch free parameters based on typed symmetry
 free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
 free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = @MVector zeros(N ÷ R)
 free_params(::Polygon{N,BilateralSymmetry{P}}) where {N,P} = @MVector zeros((N - P) ÷ 2)
 free_params(::Polygon{N,DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
+# dispatch prevertices using typed symmetry
 prevertices(v::MVector, ::NoSymmetry) = v |> y_to_θ
 prevertices(v::MVector{V,T}, ::CyclicSymmetry{R}) where {V,T,R} =
     MVector{R*V-1,T}(ntuple(i -> v[mod1(i,V)], R*V-1)) |> y_to_θ
@@ -49,7 +51,6 @@ prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,2}) where {V,T,R} =
 
 function sc_parameter_problem(poly::Polygon{N}) where {N}
     x₀ = free_params(poly)
-
     f = SchwarzChristoffel(prevertices(x₀, poly.s), poly.β)
 
     k_inf = findall(isinf, poly.w)
