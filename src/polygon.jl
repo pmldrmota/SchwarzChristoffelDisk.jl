@@ -3,18 +3,40 @@ export Polygon
 using StaticArrays
 
 abstract type AbstractSymmetry end
-struct NoSymmetry <: AbstractSymmetry end
-struct CyclicSymmetry{R} <: AbstractSymmetry end
-struct BilateralSymmetry{P} <: AbstractSymmetry end
-struct DihedralSymmetry{R,P} <: AbstractSymmetry end
 
-struct Polygon{N,S<:AbstractSymmetry,W,B,L}
-    w::SVector{N,W}  # vertices
-    sym::S  # symmetry
-    β::SVector{N,B}  # left-turn angles
-    ℓ::SVector{N,L}  # length of edges [i,i+1]
+"""No symmetry"""
+struct NoSymmetry <: AbstractSymmetry end
+"""Rotational symetry
+
+Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
+"""
+struct CyclicSymmetry{R} <: AbstractSymmetry end
+
+"""Mirror symetry
+
+Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
+The field `α` stores the angle of the axis with respect to the real axis.
+"""
+struct BilateralSymmetry{P,A} <: AbstractSymmetry
+    α::A
 end
 
+"""Regular polygon symmetry
+
+Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
+Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
+The field `α` stores the smallest out of all angles that any of the mirror symmetry axes
+subtend with the real axis.
+"""
+struct DihedralSymmetry{R,P,A} <: AbstractSymmetry
+    α::A
+end
+
+"""Classify the symmetry group of a polygon
+
+:param w: vertices of the polygon
+:returns: instance of a subtype of AbstractSymmetry
+"""
 function classify_symmetry(w::SVector{N}) where {N}
     # todo: is_congruent can be optimised to avoid allocations in circshift.
     is_congruent(nodes) = any(all(nodes .≈ circshift(w, i)) for i ∈ 0:N-1)
@@ -45,9 +67,11 @@ function classify_symmetry(w::SVector{N}) where {N}
     end
 
     if has_rotation && has_mirror
-        DihedralSymmetry{rotational_order,points_on_axes}()
+        α = angle(axes[idx₁])
+        DihedralSymmetry{rotational_order,points_on_axes,typeof(α)}(α)
     elseif !has_rotation && has_mirror
-        BilateralSymmetry{points_on_axes}()
+        α = angle(axes[idx₁])
+        BilateralSymmetry{points_on_axes,typeof(α)}(α)
     elseif has_rotation && !has_mirror
         CyclicSymmetry{rotational_order}()
     else
@@ -55,9 +79,16 @@ function classify_symmetry(w::SVector{N}) where {N}
     end
 end
 
-function Polygon(w::SVector{N,W}, β::SVector{N,B}, ℓ::SVector{N,L}) where {N,W,B,L}
-    sym = classify_symmetry(w)
-    Polygon{N,typeof(sym),W,B,L}(w, sym, β, ℓ)
+struct Polygon{N,S<:AbstractSymmetry,W,F}
+    w::SVector{N,W}  # vertices
+    s::S
+    β::SVector{N,F}  # left-turn angles
+    ℓ::SVector{N,F}  # length of edges [i,i+1]
+
+    function Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F}
+        sym = classify_symmetry(w)
+        new{N,typeof(sym),W,F}(w, sym, β, ℓ)
+    end
 end
 
 function Polygon(w::SVector{N,W}) where {N,W}
@@ -74,7 +105,7 @@ function Polygon(w::SVector{N,W}) where {N,W}
     Polygon(w, SVector{N}(β), SVector{N}(ℓ))
 end
 
-function Polygon(w::SVector{N,W}, β::SVector{N,B}) where {N,W,B}
+function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     ∑β = sum(β)
     @assert ∑β ≈ 2 "wrong angles (∑β=$∑β)"
     k = 0
@@ -94,5 +125,5 @@ function Polygon(w::SVector{N,W}, β::SVector{N,B}) where {N,W,B}
         ℓ = circshift(ℓ, -k)
         β = circshift(β, -k)
     end
-    Polygon(SVector{N,W}(w), SVector{N,B}(β), SVector{N}(ℓ))
+    Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
 end
