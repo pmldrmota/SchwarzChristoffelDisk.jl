@@ -35,6 +35,7 @@ end
 """Classify the symmetry group of a polygon
 
 :param w: vertices of the polygon
+:param β: left-turn angles at the nodes of the polygon
 :returns: instance of a subtype of AbstractSymmetry
 """
 function classify_symmetry(w::SVector{N}, β::SVector{N}) where {N}
