@@ -13,11 +13,11 @@ function y_to_θ(y)
     t .* y2
 end
 
-"""Fix the scaling constant of the Schwarz-Christoffel transformation and set the singularities from `y`
+"""Fix the scaling constant of the Schwarz-Christoffel transformation and set the singularities
 """
-function sc_fix!(f, y, wN)
-    f.z .= cispi.(y_to_θ(y))
-    @assert !any(isnan.(f.z)) "sc_fix! got NaN output $(f.z) from $y"
+function sc_fix!(f, θ, wN)
+    f.z .= cispi.(θ)
+    @assert !any(isnan.(f.z)) "sc_fix! got NaN output $(f.z) from $θ"
 
     # evaluate image vertices with unit constant
     f.c = 1
@@ -25,57 +25,53 @@ function sc_fix!(f, y, wN)
     f.c = wN / sc_trafo(f, f.z[end])
 end
 
-function sc_parameter_problem(polygon::Polygon{N}) where {N}
-    symmetries = PolygonSymmetries(polygon)
-    @show symmetries
-    N₀ = N ÷ symmetries.rotational_order
-    num_free_params = if symmetries.has_mirror_symmetry
-        (N₀ - symmetries.points_on_axes) ÷ 2
-    else
-        N₀ - 1
-    end
-    x₀ = @MVector zeros(num_free_params)
-    @show x₀
+free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
+free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = @MVector zeros(N ÷ R)
+free_params(::Polygon{N,BilateralSymmetry{P}}) where {N,P} = @MVector zeros((N - P) ÷ 2)
+free_params(::Polygon{N,DihedralSymmetry{R,P}}) where {N,R,P} =
+    @MVector zeros((N ÷ R - P) ÷ 2)
 
-    "Construct the pre-prevertex vector from free parameters"
-    y(x)::MVector{N-1,Float64} = MVector{N-1}(repeat(
-        if symmetries.has_mirror_symmetry
-            if symmetries.points_on_axes == 0
-                [x; -reverse(x)]
-            elseif symmetries.points_on_axes == 1
-                [x; 0; -reverse(x)]
-            else
-                [x; 0; -reverse(x); 0]
-            end
-        else
-            [x; 0]
-        end,
-        symmetries.rotational_order,
-    )[begin:end-1])
+prevertices(v::MVector, ::NoSymmetry) = v |> y_to_θ
+prevertices(v::MVector{V,T}, ::CyclicSymmetry{R}) where {V,T,R} =
+    MVector{R*V-1,T}(ntuple(i -> v[mod1(i,V)], R*V-1)) |> y_to_θ
+prevertices(v::MVector{V,T}, ::BilateralSymmetry{0}) where {V,T} =
+    MVector{2*V-1,T}(v..., -v[end:-1:2]...) |> y_to_θ
+prevertices(v::MVector{V,T}, ::BilateralSymmetry{1}) where {V,T} =
+    MVector{2*V,T}(v..., 0, -v[end:-1:2]...) |> y_to_θ
+prevertices(v::MVector{V,T}, ::BilateralSymmetry{2}) where {V,T} =
+    MVector{2*V+1,T}(v..., 0, -v[end:-1:1]...) |> y_to_θ
+prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,0}) where {V,T,R} =
+    prevertices(MVector{2*V,T}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
+prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,1}) where {V,T,R} =
+    prevertices(MVector{2*V+1,T}(v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
+prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,2}) where {V,T,R} =
+    prevertices(MVector{2*V+2,T}(v..., 0, -v[end:-1:1]..., 0), CyclicSymmetry{R}())
 
-    @show y(x₀)
-    f = SchwarzChristoffel(y_to_θ(y(x₀)), polygon.β)
+function sc_parameter_problem(poly::Polygon{N}) where {N}
+    x₀ = free_params(poly)
 
-    k_inf = findall(isinf, polygon.w)
+    f = SchwarzChristoffel(prevertices(x₀, poly.s), poly.β)
+
+    k_inf = findall(isinf, poly.w)
     # vertex positions
     k_fix = tuple([1; k_inf[2:end] .- 1]...)
     # n-2m-1 side lengths
-    k_fin = tuple(findall(!isinf, polygon.ℓ)[1:(N-2*length(k_fix)-1)]...)
+    k_fin = tuple(findall(!isinf, poly.ℓ)[1:(N-2*length(k_fix)-1)]...)
 
     function cost_function!(F, x)
-        sc_fix!(f, y(x), polygon.w[end])
+        sc_fix!(f, prevertices(x, poly.s), poly.w[end])
 
         if !isnothing(F)
             # fix one vertex per component - 2 real conditions each
             @inbounds for (i, k) ∈ enumerate(k_fix)
-                dk = polygon.w[k] - sc_trafo(f, f.z[k])
+                dk = poly.w[k] - sc_trafo(f, f.z[k])
                 F[2i-1] = real(dk)
                 F[2i] = imag(dk)
             end
             # fix n-2m-1 side lengths - 1 real condition each
             m = length(k_fix)
             @inbounds for (j, k) ∈ enumerate(k_fin)
-                F[2m+j] = abs(sc_segment(f, k)) - polygon.ℓ[k]
+                F[2m+j] = abs(sc_segment(f, k)) - poly.ℓ[k]
             end
         end
     end
@@ -83,10 +79,10 @@ function sc_parameter_problem(polygon::Polygon{N}) where {N}
     # solve
     sol = nlsolve(cost_function!, x₀)
     # apply solution
-    sc_fix!(f, y(sol.zero), polygon.w[end])
+    sc_fix!(f, prevertices(sol.zero, poly.s), poly.w[end])
 
     # test
-    !sc_test_ok(f, polygon.w) && @warn "parameter_problem failed"
+    !sc_test_ok(f, poly.w) && @warn "parameter_problem failed"
 
     (sol, f)
 end
