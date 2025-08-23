@@ -28,7 +28,7 @@ struct PolygonSymmetries
     points_on_axes::Int64
 end
 
-function PolygonSymmetries(poly::Polygon{N,W,B,M}) where {N,W,B,M}
+function PolygonSymmetries(poly::Polygon{N}) where {N}
     # go through all possible rotational symmetries
     rot_order = 1
     for k = N:-1:2
