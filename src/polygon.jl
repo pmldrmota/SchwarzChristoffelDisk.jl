@@ -22,7 +22,7 @@ function classify_symmetry(w::SVector{N}) where {N}
     is_mirror_symmetry(α) = is_congruent(reverse(@. α * conj(α' * w) / abs2(α)))
 
     # classify rotational symmetry
-    rotational_order = something(findfirst(is_rotational_symmetry, N:-1:2), 1)
+    rotational_order = N + 1 - something(findfirst(is_rotational_symmetry, N:-1:2), N)
     has_rotation = rotational_order > 1
 
     # candidate mirror symmetry axes = vertices ∪ edge midpoints
