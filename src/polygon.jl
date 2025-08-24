@@ -58,10 +58,11 @@ function classify_symmetry(w::SVector{N}, β::SVector{N}) where {N}
     rotational_order = N + 1 - something(findfirst(is_rotational_symmetry, N:-1:2), N)
     has_rotation = rotational_order > 1
 
-    # candidate mirror symmetry axes = vertices ∪ edge midpoints
-    midpoints = @. (w + w[mod1(2:N+1, N)]) / 2
-    axes = sort([w; midpoints], by = angle)
-
+    # candidate mirror symmetry axes
+    finite_w = filter(!isinf, w)
+    edge_normals = (finite_w[2:end] .- finite_w[1]) * cispi(1/2)
+    # could filter out those that are identical up to 180° rotation
+    axes = sort(unique([finite_w; edge_normals]), by = angle)
     # find first symmetry axis, if any
     idx₁ = findfirst(is_mirror_symmetry, axes)
     has_mirror = !isnothing(idx₁)
