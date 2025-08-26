@@ -41,43 +41,63 @@ end
 function classify_symmetry(w::SVector{N}, β::SVector{N}) where {N}
     # precompute circshifts
     circshifts_w = SMatrix{N}((w[mod1(i - k, N)] for k ∈ 1:N for i ∈ 1:N)...)
-    circshifted_β_equal = SMatrix{N}((β[mod1(i - k, N)] ≈ β[i] for k ∈ 1:N for i ∈ 1:N)...)
+    circshifts_β = SMatrix{N}((β[mod1(i - k, N)] for k ∈ 1:N for i ∈ 1:N)...)
 
-    is_approx_equal(node, shifted_node, β_equal) =
-        isinf(node) && isinf(shifted_node) && β_equal || node ≈ shifted_node
+    isinf_or_nan(x) = isinf(x) || isnan(x)
+    is_approx_equal(w₁, β₁, w₂, β₂) =
+        isinf_or_nan(w₁) && isinf_or_nan(w₂) && mod(β₁, 2) == mod(β₂, 2) || w₁ ≈ w₂
 
-    is_congruent(nodes) = any(
-        all(is_approx_equal.(nodes, sw, sβ)) for
-        (sw, sβ) ∈ zip(eachcol(circshifts_w), eachcol(circshifted_β_equal))
+    is_congruent(nodes, turn_angles) = any(
+        all(is_approx_equal.(nodes, turn_angles, sw, sβ)) for
+        (sw, sβ) ∈ zip(eachcol(circshifts_w), eachcol(circshifts_β))
     )
 
-    is_rotational_symmetry(k) = is_congruent(cispi(2 / k) * w)
-    is_mirror_symmetry(α) = is_congruent(reverse(@. α * conj(α' * w) / abs2(α)))
+    is_rotational_symmetry(k) = is_congruent(cispi(2 // k) * w, β)
+    # still not correct because equal β at opposite infinities does not mean
+    # the lines coming from ∞ are mirror images of each other (there can be an offset).
+    # this wouldn't be captured by the finite endpoints if they themselves are on the axis.
+    is_mirror_symmetry(α) = is_congruent(reverse(@. α * conj(α' * w) / abs2(α)), reverse(β))
 
     # classify rotational symmetry
     rotational_order = N + 1 - something(findfirst(is_rotational_symmetry, N:-1:2), N)
     has_rotation = rotational_order > 1
 
-    # candidate mirror symmetry axes
+    # candidate mirror symmetry axes: finite points and edge normals
+    # if w[i] is its own mirror image, then the axis would be along w[i]
     finite_w = filter(!isinf, w)
-    edge_normals = (finite_w[2:end] .- finite_w[1]) * cispi(1/2)
-    # could filter out those that are identical up to 180° rotation
-    axes = sort(unique([finite_w; edge_normals]), by = angle)
+    # if w[1] has a mirror image, w[idx], then the axis would be normal to w[1] - w[idx]
+    edge_normals = (finite_w[2:end] .- finite_w[1]) * cispi(1 // 2)
+    # filter out those that are identical under 180° rotation and eliminate duplicates
+    # we can't use `unique()` because we have numerical precision.
+    axes = []
+    for ax ∈ [finite_w; edge_normals]
+        ϕ = angle(ax)
+        ax_upper = (ϕ ≥ 0 ? ax : -ax) / abs(ax)
+        if isnothing(findfirst(≈(ax_upper), axes))
+            push!(axes, ax_upper)
+        end
+    end
+    axes = sort(axes, by = angle)
+
     # find first symmetry axis, if any
     idx₁ = findfirst(is_mirror_symmetry, axes)
     has_mirror = !isnothing(idx₁)
+
+    on_positive_axis(ax) = p -> ax * conj(p) ≈ abs(p)
     points_on_axes = 0
 
     if has_mirror
         axis₁ = axes[idx₁]
-        points_on_axes += count(==(axis₁), w)
-
+        points_on_axes += count(on_positive_axis(axis₁), finite_w)
         # look for another axis
         idx₂ = findnext(is_mirror_symmetry, axes, idx₁ + 1)
+        # if no other found, then we need to use the negative part of axis₁
         axis₂ = isnothing(idx₂) ? -axis₁ : axes[idx₂]
-        points_on_axes += count(==(axis₂), w)
+        points_on_axes += count(on_positive_axis(axis₂), finite_w)
     end
 
+    # are polygons whose finite vertices are symmetric also symmetric in the
+    # prevertices even if the overall polygon doesn't have that symmetry?
     if has_rotation && has_mirror
         α = angle(axes[idx₁])
         DihedralSymmetry{rotational_order,points_on_axes,typeof(α)}(α)
