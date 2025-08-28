@@ -103,6 +103,7 @@ function classify_symmetry(w::SVector{N}, β::SVector{N}) where {N}
         DihedralSymmetry{rotational_order,points_on_axes,typeof(α)}(α)
     elseif !has_rotation && has_mirror
         α = angle(axes[idx₁])
+        # issue: isodd(N) && (w : isinf(w)) is on axis => points_on_axes wrong
         BilateralSymmetry{points_on_axes,typeof(α)}(α)
     elseif has_rotation && !has_mirror
         CyclicSymmetry{rotational_order}()
@@ -140,19 +141,25 @@ end
 function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     ∑β = sum(β)
     @assert ∑β ≈ 2 "wrong angles (∑β=$∑β)"
+    @assert all(>(1), diff(findall(isinf, w))) "remove consecutive infinities"
+    has_2_finite_connected_nodes = false
     k = 0
     # preallocate output
     ℓ = zeros(N)
     for (i, wi) ∈ enumerate(w)
-        post = mod1(i + 1, N)
-        @assert !(isinf(wi) && isinf(w[post])) "remove consecutive infinity at k=$post"
-        if isinf(w[mod1(i - 2, N)]) && !isinf(w[mod1(i - 1, N)]) && !isinf(wi)
-            # find circshift such that w[N-1] is an infinity and w[1] and w[N] are finite
-            k = i - 1
+        post₁ = mod1(i + 1, N)
+        post₂ = mod1(i + 2, N)
+        if !isinf(w[post₁]) && !isinf(w[post₂])
+            has_2_finite_connected_nodes = true
+            if isinf(wi)
+                # found circshift such that w[N-1] is an infinity and w[1] and w[N] are finite
+                k = i + 1
+            end
         end
-        ℓ[i] = abs(w[post] - wi)
+        ℓ[i] = abs(w[post₁] - wi)
     end
-    if k != 0
+    @assert has_2_finite_connected_nodes "provide at least 2 connected finite vertices"
+    if k ≠ 0
         w = circshift(w, -k)
         ℓ = circshift(ℓ, -k)
         β = circshift(β, -k)
