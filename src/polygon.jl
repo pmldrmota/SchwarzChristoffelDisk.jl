@@ -147,16 +147,16 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     # preallocate output
     ℓ = zeros(N)
     for (i, wi) ∈ enumerate(w)
-        post₁ = mod1(i + 1, N)
-        post₂ = mod1(i + 2, N)
-        if !isinf(w[post₁]) && !isinf(w[post₂])
+        post₁ = w[mod1(i + 1, N)]
+        post₂ = w[mod1(i + 2, N)]
+        if !isinf(post₁) && !isinf(post₂)
             has_2_finite_connected_nodes = true
             if isinf(wi)
                 # found circshift such that w[N-1] is an infinity and w[1] and w[N] are finite
                 k = i + 1
             end
         end
-        ℓ[i] = abs(w[post₁] - wi)
+        ℓ[i] = abs(post₁ - wi)
     end
     @assert has_2_finite_connected_nodes "provide at least 2 connected finite vertices"
     if k ≠ 0
@@ -164,5 +164,13 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
         ℓ = circshift(ℓ, -k)
         β = circshift(β, -k)
     end
+    # check supplied angles β for inconsistencies with supplied vertices w
+    # these are the inclines of all segments from β
+    γ = mod.(angle(w[1] - w[end]) .+ π .* cumsum([0; β[1:end-1]]), 2π)
+    # these are the indices of finite segments
+    idxs = findall(i -> !isinf(w[i]) && !isinf(w[mod1(i-1,N)]), 1:N)
+    # these are the inclines of the finite segments
+    α = [angle(w[i] - w[mod1(i-1,N)]) for i ∈ idxs]
+    @assert all(γ[idxs] .≈ α) "inconsistent w and β"
     Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
 end
