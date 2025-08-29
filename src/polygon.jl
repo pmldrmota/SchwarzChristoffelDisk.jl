@@ -86,6 +86,7 @@ struct Polygon{N,S<:AbstractSymmetry,W,F}
 end
 
 function Polygon(w::SVector{N,W}) where {N,W}
+    @assert length(w) > 2 "Polygon must have at least 3 nodes"
     @assert count(isinf, w) == 0 "must specify angles if there are infinities"
     # preallocate output
     β = zeros(N)
@@ -100,31 +101,29 @@ function Polygon(w::SVector{N,W}) where {N,W}
 end
 
 function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
+    @assert length(w) > 2 "Polygon must have at least 3 nodes"
     ∑β = sum(β)
     @assert ∑β ≈ 2 "wrong angles (∑β=$∑β)"
     @assert all(>(1), diff(findall(isinf, w))) "remove consecutive infinities"
-    has_2_finite_connected_nodes = false
-    k = 0
-    # preallocate output
-    ℓ = zeros(N)
-    for (i, wi) ∈ enumerate(w)
-        post₁ = w[mod1(i + 1, N)]
-        post₂ = w[mod1(i + 2, N)]
-        if !isinf(post₁) && !isinf(post₂)
-            has_2_finite_connected_nodes = true
-            if isinf(wi)
-                # found circshift such that w[N-1] is an infinity and w[1] and w[N] are finite
-                k = i + 1
-            end
-        end
-        ℓ[i] = abs(post₁ - wi)
+
+    wc(i) = w[mod1(i,N)]
+
+    ℓ = [abs(wc(i+1) - w[i]) for i ∈ eachindex(w)]
+
+    # find circshift such that w[N-1] is an infinity and w[N] and w[1] are finite
+    k = findfirst(i -> isinf(wc(i-2)) && isfinite(wc(i-1)) && isfinite(wc(i)), 1:N)
+    if isnothing(k)
+        # If there is no sequence [Inf, Finite, Finite] to be found, then there
+        # is either no infinity or not one connected section consisting of at least
+        # 2 vertices - which is problematic as that section would have a rotational
+        # degree of freedom.
+        @assert count(isinf, w) == 0 "provide at least 2 connected finite vertices"
+    else
+        w = circshift(w, k)
+        ℓ = circshift(ℓ, k)
+        β = circshift(β, k)
     end
-    @assert has_2_finite_connected_nodes "provide at least 2 connected finite vertices"
-    if k ≠ 0
-        w = circshift(w, -k)
-        ℓ = circshift(ℓ, -k)
-        β = circshift(β, -k)
-    end
+
     # check supplied angles β for inconsistencies with supplied vertices w
     # these are the inclines of all segments from β
     γ = mod.(angle(w[1] - w[end]) .+ π .* cumsum([0; β[1:end-1]]), 2π)
@@ -133,5 +132,6 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     # these are the inclines of the finite segments
     α = [angle(w[i] - w[mod1(i-1,N)]) for i ∈ idxs]
     @assert all(γ[idxs] .≈ α) "inconsistent w and β"
+
     Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
 end
