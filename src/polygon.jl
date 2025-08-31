@@ -106,12 +106,12 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     @assert ∑β ≈ 2 "wrong angles (∑β=$∑β)"
     @assert all(>(1), diff(findall(isinf, w))) "remove consecutive infinities"
 
-    wc(i) = w[mod1(i,N)]
+    wc(i) = w[mod1(i, N)]
 
-    ℓ = [abs(wc(i+1) - w[i]) for i ∈ eachindex(w)]
+    ℓ = [abs(wc(i + 1) - w[i]) for i ∈ eachindex(w)]
 
     # find circshift such that w[N-1] is an infinity and w[N] and w[1] are finite
-    k = findfirst(i -> isinf(wc(i-2)) && isfinite(wc(i-1)) && isfinite(wc(i)), 1:N)
+    k = findfirst(i -> isinf(wc(i - 2)) && isfinite(wc(i - 1)) && isfinite(wc(i)), 1:N)
     if isnothing(k)
         # If there is no sequence [Inf, Finite, Finite] to be found, then there
         # is either no infinity or not one connected section consisting of at least
@@ -128,9 +128,9 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     # these are the inclines of all segments from β
     γ = mod.(angle(w[1] - w[end]) .+ π .* cumsum([0; β[1:end-1]]), 2π)
     # these are the indices of finite segments
-    idxs = findall(i -> !isinf(w[i]) && !isinf(w[mod1(i-1,N)]), 1:N)
+    idxs = findall(i -> isfinite(w[i]) && isfinite(w[mod1(i - 1, N)]), 1:N)
     # these are the inclines of the finite segments
-    α = [angle(w[i] - w[mod1(i-1,N)]) for i ∈ idxs]
+    α = [angle(w[i] - w[mod1(i - 1, N)]) for i ∈ idxs]
     @assert all(γ[idxs] .≈ α) "inconsistent w and β"
 
     Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
