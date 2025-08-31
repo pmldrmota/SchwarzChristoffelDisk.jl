@@ -43,10 +43,10 @@ function classify_symmetry(w::SVector{N}, β::SVector{N}, ℓ::SVector{N}) where
     # replace all infinite edges with a unique finite length
     my_inf = sum(filter(!isinf, ℓ))  # ∉ ℓ
     ℓ = SVector(replace(x -> isinf(x) ? my_inf : x, ℓ))
-    L = MVector(ℓ .* cispi.(β))
-    M = MVector(ℓ .* cispi.(circshift(β, -1)) |> reverse)
+    L = SVector(ℓ .* cispi.(β))
+    M = SVector(ℓ .* cispi.(circshift(β, -1)) |> reverse)
 
-    rot_equivalent(A, B, rot_a) = all(B .≈ circshift(A, rot_a))
+    rot_equivalent(A, B, k) = all(B[i] ≈ A[mod1(i - k, N)] for i ∈ 1:N)
 
     rot_order = 1 + count(k -> rot_equivalent(L, L, k), 1:N-1)
     reflections = [m for m ∈ 0:N-1 if rot_equivalent(L, M, m)]
