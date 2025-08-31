@@ -55,9 +55,9 @@ function sc_parameter_problem(poly::Polygon{N}) where {N}
 
     k_inf = findall(isinf, poly.w)
     # vertex positions
-    k_fix = tuple([1; k_inf[2:end] .- 1]...)
+    k_fix = tuple(1, (k_inf[2:end] .- 1)...)
     # n-2m-1 side lengths
-    k_fin = tuple(findall(!isinf, poly.ℓ)[1:(N-2*length(k_fix)-1)]...)
+    k_fin = tuple(findall(isfinite, poly.ℓ)[1:(N-2*length(k_fix)-1)]...)
 
     function cost_function!(F, x)
         sc_fix!(f, prevertices(x, poly.s), poly.w[end])
