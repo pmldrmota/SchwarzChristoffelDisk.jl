@@ -28,26 +28,26 @@ end
 # dispatch free parameters based on typed symmetry
 free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
 free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = @MVector zeros(N ÷ R)
-free_params(::Polygon{N,BilateralSymmetry{P}}) where {N,P} = @MVector zeros((N - P) ÷ 2)
-free_params(::Polygon{N,DihedralSymmetry{R,P}}) where {N,R,P} =
+free_params(::Polygon{N,<:BilateralSymmetry{P}}) where {N,P} = @MVector zeros((N - P) ÷ 2)
+free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
 # dispatch prevertices using typed symmetry
 prevertices(v::MVector, ::NoSymmetry) = v |> y_to_θ
 prevertices(v::MVector{V,T}, ::CyclicSymmetry{R}) where {V,T,R} =
-    MVector{R*V-1,T}(ntuple(i -> v[mod1(i,V)], R*V-1)) |> y_to_θ
+    MVector{R * V - 1,T}(ntuple(i -> v[mod1(i, V)], R * V - 1)) |> y_to_θ
 prevertices(v::MVector{V,T}, ::BilateralSymmetry{0}) where {V,T} =
-    MVector{2*V-1,T}(v..., -v[end:-1:2]...) |> y_to_θ
+    MVector{2 * V - 1,T}(v..., -v[end:-1:2]...) |> y_to_θ
 prevertices(v::MVector{V,T}, ::BilateralSymmetry{1}) where {V,T} =
-    MVector{2*V,T}(v..., 0, -v[end:-1:2]...) |> y_to_θ
+    MVector{2 * V,T}(v..., 0, -v[end:-1:2]...) |> y_to_θ
 prevertices(v::MVector{V,T}, ::BilateralSymmetry{2}) where {V,T} =
-    MVector{2*V+1,T}(v..., 0, -v[end:-1:1]...) |> y_to_θ
+    MVector{2 * V + 1,T}(v..., 0, -v[end:-1:1]...) |> y_to_θ
 prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,0}) where {V,T,R} =
-    prevertices(MVector{2*V,T}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
+    prevertices(MVector{2 * V,T}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
 prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,1}) where {V,T,R} =
-    prevertices(MVector{2*V+1,T}(v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
+    prevertices(MVector{2 * V + 1,T}(v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
 prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,2}) where {V,T,R} =
-    prevertices(MVector{2*V+2,T}(v..., 0, -v[end:-1:1]..., 0), CyclicSymmetry{R}())
+    prevertices(MVector{2 * V + 2,T}(v..., 0, -v[end:-1:1]..., 0), CyclicSymmetry{R}())
 
 function sc_parameter_problem(poly::Polygon{N}) where {N}
     x₀ = free_params(poly)
