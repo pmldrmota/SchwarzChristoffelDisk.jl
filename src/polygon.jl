@@ -15,21 +15,21 @@ struct CyclicSymmetry{R} <: AbstractSymmetry end
 """Mirror symetry
 
 Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
-The field `α` stores the angle of the axis with respect to the real axis.
+The field `axis` stores the axis of symmetry.
 """
 struct BilateralSymmetry{P,A} <: AbstractSymmetry
-    α::A
+    axis::A
 end
 
 """Regular polygon symmetry
 
 Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
 Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
-The field `α` stores the smallest out of all angles that any of the mirror symmetry axes
-subtend with the real axis.
+The field `axis` stores one axis of symmetry. The other ones can be constructed
+by rotation.
 """
 struct DihedralSymmetry{R,P,A} <: AbstractSymmetry
-    α::A
+    axis::A
 end
 
 """Classify the symmetry group of a polygon
@@ -41,35 +41,49 @@ end
 function classify_symmetry(w::SVector{N}, β::SVector{N}, ℓ::SVector{N}) where {N}
     # want to preserve angle information on infinite vertices
     # replace all infinite edges with a unique finite length
-    my_inf = sum(filter(!isinf, ℓ))  # ∉ ℓ
+    my_inf = sum(filter(isfinite, ℓ))  # ∉ ℓ
     ℓ = SVector(replace(x -> isinf(x) ? my_inf : x, ℓ))
     L = SVector(ℓ .* cispi.(β))
     M = SVector(ℓ .* cispi.(circshift(β, -1)) |> reverse)
 
-    rot_equivalent(A, B, k) = all(B[i] ≈ A[mod1(i - k, N)] for i ∈ 1:N)
+    congruent_circshift(A, B, k) = all(B[i] ≈ A[mod1(i - k, N)] for i ∈ 1:N)
 
-    rot_order = 1 + count(k -> rot_equivalent(L, L, k), 1:N-1)
-    reflections = [m for m ∈ 0:N-1 if rot_equivalent(L, M, m)]
+    rot_order = 1 + count(k -> congruent_circshift(L, L, k), 1:N-1)
+    refl₁ = findfirst(m -> congruent_circshift(L, M, m), 1:N)
 
     has_rotation = rot_order > 1
-    has_mirror = length(reflections) > 0
-    if has_rotation && has_mirror
-        # With 2 adjacent mirror axes, we can just count how many of them
-        # include a vertex.
-        points_on_axes = count(r -> iseven(r + N), reflections[1:2])
-        α = NaN
-        DihedralSymmetry{rot_order,points_on_axes,typeof(α)}(α)
-    elseif !has_rotation && has_mirror
-        # With 1 mirror axis only, a polygon with an odd number of vertices
-        # must have exactly 1 vertex on the axis. Otherwise, there are either
-        # 0 or 2 vertices on the axis.
-        points_on_axes = isodd(N) ? 1 : (iseven(reflections[1] + N) ? 2 : 0)
-        α = NaN
-        BilateralSymmetry{points_on_axes,typeof(α)}(α)
-    elseif has_rotation && !has_mirror
-        CyclicSymmetry{rot_order}()
+    has_mirror = !isnothing(refl₁)
+    if has_mirror
+        wc(i) = w[mod1(i, N)]
+        axis = if iseven(refl₁)
+            Δ = refl₁ ÷ 2
+            v = wc(1 - Δ)
+            isfinite(v) ? v : wc(0 - Δ) + wc(2 - Δ)
+        else
+            Δ₊ = (refl₁ + 1) ÷ 2
+            Δ₋ = (refl₁ - 1) ÷ 2
+            wc(1 - Δ₊) + wc(1 - Δ₋)
+        end
+
+        if has_rotation
+            # With 2 adjacent mirror axes, we can just count how many of them
+            # include a vertex.
+            refl₂ = findnext(m -> congruent_circshift(L, M, m), 1:N, refl₁ + 1)
+            points_on_axes = iseven(refl₁) + iseven(refl₂)
+            DihedralSymmetry{rot_order,points_on_axes,typeof(axis)}(axis)
+        else
+            # With 1 mirror axis only, a polygon with an odd number of vertices
+            # must have exactly 1 vertex on the axis. Otherwise, there are either
+            # 0 or 2 vertices on the axis.
+            points_on_axes = isodd(N) ? 1 : (iseven(refl₁) ? 2 : 0)
+            BilateralSymmetry{points_on_axes,typeof(axis)}(axis)
+        end
     else
-        NoSymmetry()
+        if has_rotation
+            CyclicSymmetry{rot_order}()
+        else
+            NoSymmetry()
+        end
     end
 end
 
