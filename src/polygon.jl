@@ -90,14 +90,17 @@ function classify_symmetry(w::SVector{N}, β::SVector{N}, ℓ::SVector{N}) where
 end
 
 struct Polygon{N,S<:AbstractSymmetry,W,F}
-    w::SVector{N,W}  # vertices
+    com::W  # centre of mass (of finite vertices)
+    w::SVector{N,W}  # vertices w.r.t. centre of mass
     s::S
     β::SVector{N,F}  # left-turn angles
     ℓ::SVector{N,F}  # length of edges [i,i+1]
 
     function Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F}
+        finite_w = filter(isfinite, w)
+        com = sum(finite_w) / length(finite_w)
         sym = classify_symmetry(w, β, ℓ)
-        new{N,typeof(sym),W,F}(w, sym, β, ℓ)
+        new{N,typeof(sym),W,F}(com, w .- com, sym, β, ℓ)
     end
 end
 
