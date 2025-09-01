@@ -17,8 +17,9 @@ struct CyclicSymmetry{R} <: AbstractSymmetry end
 Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
 The field `axis` stores the axis of symmetry.
 """
-struct BilateralSymmetry{P,A} <: AbstractSymmetry
-    axis::A
+struct BilateralSymmetry{P,T} <: AbstractSymmetry
+    axis::Complex{T}
+    BilateralSymmetry{P}(axis::Complex{T}) where {P,T} = new{P,T}(axis)
 end
 
 """Regular polygon symmetry
@@ -28,8 +29,9 @@ Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
 The field `axis` stores one axis of symmetry. The other ones can be constructed
 by rotation.
 """
-struct DihedralSymmetry{R,P,A} <: AbstractSymmetry
-    axis::A
+struct DihedralSymmetry{R,P,T} <: AbstractSymmetry
+    axis::Complex{T}
+    DihedralSymmetry{R,P}(axis::Complex{T}) where {R,P,T} = new{R,P,T}(axis)
 end
 
 """Classify the symmetry group of a polygon
@@ -70,13 +72,13 @@ function classify_symmetry(w::SVector{N}, β::SVector{N}, ℓ::SVector{N}) where
             # include a vertex.
             refl₂ = findnext(m -> congruent_circshift(L, M, m), 1:N, refl₁ + 1)
             points_on_axes = iseven(refl₁) + iseven(refl₂)
-            DihedralSymmetry{rot_order,points_on_axes,typeof(axis)}(axis)
+            DihedralSymmetry{rot_order,points_on_axes}(axis)
         else
             # With 1 mirror axis only, a polygon with an odd number of vertices
             # must have exactly 1 vertex on the axis. Otherwise, there are either
             # 0 or 2 vertices on the axis.
             points_on_axes = isodd(N) ? 1 : (iseven(refl₁) ? 2 : 0)
-            BilateralSymmetry{points_on_axes,typeof(axis)}(axis)
+            BilateralSymmetry{points_on_axes}(axis)
         end
     else
         if has_rotation
