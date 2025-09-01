@@ -142,9 +142,9 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
     # these are the inclines of all segments from β
     γ = mod.(angle(w[1] - w[end]) .+ π .* cumsum([0; β[1:end-1]]), 2π)
     # these are the indices of finite segments
-    idxs = findall(i -> isfinite(w[i]) && isfinite(w[mod1(i - 1, N)]), 1:N)
+    idxs = findall(i -> isfinite(w[i]) && isfinite(wc(i - 1)), 1:N)
     # these are the inclines of the finite segments
-    α = [angle(w[i] - w[mod1(i - 1, N)]) for i ∈ idxs]
+    α = [angle(w[i] - wc(i - 1)) for i ∈ idxs]
     @assert all(γ[idxs] .≈ α) "inconsistent w and β"
 
     Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
