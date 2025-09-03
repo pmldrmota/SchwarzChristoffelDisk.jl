@@ -138,18 +138,18 @@ function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
         # degree of freedom.
         @assert count(isinf, w) == 0 "provide at least 2 connected finite vertices"
     else
-        w = circshift(w, k)
-        ℓ = circshift(ℓ, k)
-        β = circshift(β, k)
+        w = circshift(w, -k + 1)
+        ℓ = circshift(ℓ, -k + 1)
+        β = circshift(β, -k + 1)
     end
 
     # check supplied angles β for inconsistencies with supplied vertices w
     # these are the inclines of all segments from β
-    γ = mod.(angle(w[1] - w[end]) .+ π .* cumsum([0; β[1:end-1]]), 2π)
+    γ = mod.(angle(w[1] - w[end]) .+ π .* cumsum([0; β[1:end-1]]), π)
     # these are the indices of finite segments
     idxs = findall(i -> isfinite(w[i]) && isfinite(wc(i - 1)), 1:N)
     # these are the inclines of the finite segments
-    α = [angle(w[i] - wc(i - 1)) for i ∈ idxs]
+    α = [mod(angle(w[i] - wc(i - 1)), π) for i ∈ idxs]
     @assert all(γ[idxs] .≈ α) "inconsistent w and β"
 
     Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
