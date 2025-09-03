@@ -96,27 +96,28 @@ struct Polygon{N,S<:AbstractSymmetry,W,F}
     β::SVector{N,F}  # left-turn angles
     ℓ::SVector{N,F}  # length of edges [i,i+1]
 
-    function Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F}
+    function Polygon(w, s, β, ℓ)
         finite_w = filter(isfinite, w)
         com = sum(finite_w) / length(finite_w)
-        sym = classify_symmetry(w, β, ℓ)
-        new{N,typeof(sym),W,F}(com, w .- com, sym, β, ℓ)
+        new(com, w .- com, s, β, ℓ)
     end
 end
+
+Polygon(w, β, ℓ) = Polygon(w, classify_symmetry(w, β, ℓ), β, ℓ)
 
 function Polygon(w::SVector{N,W}) where {N,W}
     @assert length(w) > 2 "Polygon must have at least 3 nodes"
     @assert count(isinf, w) == 0 "must specify angles if there are infinities"
     # preallocate output
-    β = zeros(N)
-    ℓ = zeros(N)
+    β = Vector{Float64}(undef, N)
+    ℓ = Vector{Float64}(undef, N)
     for (i, wi) ∈ enumerate(w)
         post = w[mod1(i + 1, N)] - wi
         pre = wi - w[mod1(i - 1, N)]
         β[i] = angle(pre' * post) / π
         ℓ[i] = abs(post)
     end
-    Polygon(w, SVector{N}(β), SVector{N}(ℓ))
+    Polygon(w, SVector(β), SVector(ℓ))
 end
 
 function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
