@@ -4,15 +4,21 @@ using StaticArrays, PyPlot
 
 function draw_polygon(p::Polygon, ax; kwargs...)
     N = Size(p.w)[1]
-    γ = angle(p.w[begin] - p.w[end]) .+ π .* cumsum(p.β)
-    v = [p.w[end]]
-    R = 10 * maximum(filter(!isinf, abs.(p.w)))
-    for (k, wk) ∈ enumerate(p.w)
+    k = findfirst(idx₁ -> begin
+        idx₂ = mod1(idx₁ + 1, N)
+        isfinite(p.w[idx₁]) && isfinite(p.w[idx₂])
+    end, 1:N)
+    w = circshift(p.w, -k)
+    β = circshift(p.β, -k)
+    γ = angle(w[begin] - w[end]) .+ π .* cumsum(β)
+    v = [w[end]]
+    R = 10 * maximum(filter(!isinf, abs.(w)))
+    for (k, wk) ∈ enumerate(w)
         if isinf(wk)
             ax.plot(real.(v), imag.(v); kwargs...)
             v = [v[end], v[end] + R * cis(γ[mod1(k - 1, N)])]
             ax.plot(real.(v), imag.(v); kwargs..., linestyle = ":")
-            v = [p.w[mod1(k + 1, N)] - R * cis(γ[k]), p.w[mod1(k + 1, N)]]
+            v = [w[mod1(k + 1, N)] - R * cis(γ[k]), w[mod1(k + 1, N)]]
             ax.plot(real.(v), imag.(v); kwargs..., linestyle = ":")
             empty!(v)
         else
@@ -24,31 +30,37 @@ end
 
 function fill_polygon(p::Polygon, ax; color = color, kwargs...)
     N = Size(p.w)[1]
-    γ = angle(p.w[begin] - p.w[end]) .+ π .* cumsum(p.β)
-    R = 10 * maximum(filter(!isinf, abs.(p.w)))
+    k = findfirst(idx₁ -> begin
+        idx₂ = mod1(idx₁ + 1, N)
+        isfinite(p.w[idx₁]) && isfinite(p.w[idx₂])
+    end, 1:N)
+    w = circshift(p.w, -k)
+    β = circshift(p.β, -k)
+    γ = angle(w[begin] - w[end]) .+ π .* cumsum(β)
+    R = 10 * maximum(filter(!isinf, abs.(w)))
 
     function add_draw(x, y)
         ax.fill([x; x[1]], [y; y[1]], color; kwargs...)
     end
 
-    kinf1 = findfirst(isinf, p.w)
+    kinf1 = findfirst(isinf, w)
     if isnothing(kinf1)
-        add_draw(real.(p.w), imag.(p.w))
+        add_draw(real.(w), imag.(w))
     else
         v = ComplexF64[]
         for k = kinf1:(kinf1+N+1)
             this = mod1(k, N)
             next = mod1(k + 1, N)
             prev = mod1(k - 1, N)
-            if isinf(p.w[this])
+            if isinf(w[this])
                 if k > kinf1
                     push!(v, v[end] + R * cis(γ[prev]))
                     add_draw(real.(v), imag.(v))
                     empty!(v)
                 end
-                push!(v, p.w[next] - R * cis(γ[this]))
+                push!(v, w[next] - R * cis(γ[this]))
             else
-                push!(v, p.w[this])
+                push!(v, w[this])
             end
         end
     end
