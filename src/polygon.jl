@@ -67,16 +67,17 @@ function classify_symmetry(w::SVector{N}, β::SVector{N}, ℓ::SVector{N}) where
     has_mirror = !isnothing(refl₁)
     if has_mirror
         wc(i) = w[mod1(i, N)]
+        circular_average(a, b) = cis((angle(a) + angle(b)) / 2)
 
         axis(refl) =
             if iseven(refl)
                 Δ = refl ÷ 2
                 v = wc(1 - Δ)
-                isfinite(v) ? v : wc(0 - Δ) + wc(2 - Δ)
+                isfinite(v) ? v : circular_average(wc(0 - Δ), wc(2 - Δ))
             else
                 Δ₊ = (refl + 1) ÷ 2
                 Δ₋ = (refl - 1) ÷ 2
-                wc(1 - Δ₊) + wc(1 - Δ₋)
+                circular_average(wc(1 - Δ₊), wc(1 - Δ₋))
             end
 
         if has_rotation
