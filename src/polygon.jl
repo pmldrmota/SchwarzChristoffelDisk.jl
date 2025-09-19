@@ -115,10 +115,11 @@ struct Polygon{N,S<:AbstractSymmetry,W,F}
         β::SVector{N,F},
         ℓ::SVector{N,F},
     ) where {N,S,W,F}
-        @assert length(w) > 2 "Polygon must have at least 3 nodes"
-        @assert isnothing(findfirst(i -> isinf(w[i]) && isinf(w[mod1(i + 1, N)]), 1:N)) "remove consecutive infinities"
+        N < 3 && throw(ArgumentError("Polygon must have at least 3 nodes"))
+        double_∞ = findfirst(i -> isinf(w[i]) && isinf(w[mod1(i + 1, N)]), 1:N)
+        isnothing(double_∞) || throw(ArgumentError("remove consecutive infinities"))
         ∑β = sum(β)
-        @assert ∑β ≈ 2 "wrong angles (∑β=$∑β)"
+        ∑β ≈ 2 || throw(ArgumentError("wrong angles (∑β=$∑β)"))
         new{N,S,W,F}(w, s, β, ℓ)
     end
 end
