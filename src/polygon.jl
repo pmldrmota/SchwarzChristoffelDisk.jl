@@ -20,7 +20,11 @@ If `P > 0`, then `axis` is assumed to coincide with a vertex.
 """
 struct BilateralSymmetry{P,T} <: AbstractSymmetry
     axis::Complex{T}
-    BilateralSymmetry{P}(axis::Complex{T}) where {P,T} = new{P,T}(axis)
+
+    function BilateralSymmetry{P}(axis::Complex{T}) where {P,T}
+        abs(axis) < √eps() && throw(ArgumentError("axis must be nonzero"))
+        new{P,T}(axis)
+    end
 end
 
 """Regular polygon symmetry
@@ -33,7 +37,11 @@ If `P > 0`, then `axis` is assumed to coincide with a vertex.
 """
 struct DihedralSymmetry{R,P,T} <: AbstractSymmetry
     axis::Complex{T}
-    DihedralSymmetry{R,P}(axis::Complex{T}) where {R,P,T} = new{R,P,T}(axis)
+
+    function DihedralSymmetry{R,P}(axis::Complex{T}) where {R,P,T}
+        abs(axis) < √eps() && throw(ArgumentError("axis must be nonzero"))
+        new{R,P,T}(axis)
+    end
 end
 
 """Classify the symmetry group of a polygon
