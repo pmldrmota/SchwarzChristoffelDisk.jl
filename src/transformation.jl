@@ -37,7 +37,7 @@ end
 :param zv: the starting point
 :param k: index of the singularity to ignore
 """
-distance_to_singularity(f, zv, k::Nothing) = sqrt(minimum(abs2.(zv .- f.z)))
+distance_to_singularity(f, zv, ::Nothing) = sqrt(minimum(abs2.(zv .- f.z)))
 function distance_to_singularity(f, zv, k)
     dists = abs2.(zv .- f.z)
     @views sqrt(minimum([dists[begin:(k-1)]; dists[(k+1):end]]))
@@ -56,7 +56,7 @@ the points are in (-1, 1)
 gauss_quadrature(integrand, zm, zd, (xq, wq)) =
     zd * mapreduce(((xqk, wqk),) -> integrand(zm + zd * xqk) * wqk, +, zip(xq, wq))
 
-function sc_integrate(f, za, zb, kb::Nothing)
+function sc_integrate(f, za, zb, ::Nothing)
     gauss_quadrature(
         zv -> sc_first_derivative(f, zv),
         (zb + za) / 2,
