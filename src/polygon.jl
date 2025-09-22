@@ -25,7 +25,7 @@ end
 
 Polygon(w, β, ℓ) = Polygon(w, classify_symmetry(w, β, ℓ), β, ℓ)
 
-function Polygon(w::SVector{N,W}) where {N,W}
+function calc_β_ℓ(w::SVector{N,W}) where {N,W}
     @assert count(isinf, w) == 0 "must specify angles if there are infinities"
     # preallocate output
     β = Vector{Float64}(undef, N)
@@ -36,13 +36,55 @@ function Polygon(w::SVector{N,W}) where {N,W}
         β[i] = angle(pre' * post) / π
         ℓ[i] = abs(post)
     end
-    Polygon(w, SVector{N}(β), SVector{N}(ℓ))
+    (SVector{N}(β), SVector{N}(ℓ))
 end
 
+Polygon(w::SVector{N,W}) where {N,W} = Polygon(w, calc_β_ℓ(w)...)
+
 function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
-    ℓ = [abs(w[mod1(i + 1, N)] - w[i]) for i ∈ eachindex(w)]
+    ℓ = [abs(w[mod1(i + 1, N)] - w[i]) for i ∈ 1:N]
     # todo: check supplied angles β for inconsistencies with supplied vertices w
     Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
+end
+
+function Polygon(w_base::SVector{B,W}, s::CyclicSymmetry{R}) where {B,W,R}
+    N = B * R
+    w = SVector{N,W}(ntuple(i -> w_base[mod1(i, B)], N))
+    Polygon(w, s, calc_β_ℓ(w)...)
+end
+
+function reflect(axis, point)
+    normalised_axis = axis / abs(axis)
+    normalised_axis * conj(normalised_axis' * point)
+end
+
+make_mirror(w::SVector{B,W}, s::BilateralSymmetry{0}) where {B,W} =
+    SVector{2B,W}(w..., reflect.(s.axis, w)[end:-1:1])
+
+make_mirror(w::SVector{B,W}, s::BilateralSymmetry{2}) where {B,W} =
+    SVector{2B-2,W}(w..., reflect.(s.axis, w)[end-1:-1:2])
+
+function make_mirror(w::SVector{B,W}, s::BilateralSymmetry{1}) where {B,W}
+    w_r = reflect.(s.axis, w)
+    if w_r[1] ≈ w[1]
+        SVector{2B-1,W}(w..., w_r[end:-1:2]...)
+    else
+        SVector{2B-1,W}(w..., w_r[end-1:-1:1]...)
+    end
+end
+
+function Polygon(w_base, symmetry::BilateralSymmetry)
+    w = make_mirror(w_base, symmetry)
+    Polygon(w, symmetry, calc_β_ℓ(w)...)
+end
+
+function Polygon(w_base::SVector{B,W}, symmetry::DihedralSymmetry{R,P}) where {B,W,R,P}
+    # relies on assumption that axis includes a vertex if P = 1.
+    w_rotbase = make_mirror(w_base, BilateralSymmetry{P}(symmetry.axis))
+    if P == 2
+        w_rotbase = SVector{2B-3,W}(w_rotbase[1:end-1]...)
+    end
+    Polygon(w_rotbase, CyclicSymmetry{R}())
 end
 
 num_independent_vertices(::Polygon{N,NoSymmetry}) where {N} = N
