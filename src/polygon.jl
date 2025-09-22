@@ -26,32 +26,46 @@ end
 Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F} =
     Polygon(w, classify_symmetry(w, β, ℓ), β, ℓ)
 
-function calc_β_ℓ(w::SVector{N,W}) where {N,W}
-    @assert count(isinf, w) == 0 "must specify angles if there are infinities"
+function calc_β_ℓ(w::SVector{N,W}, β_lu::Dict{Int,<:Number}) where {N,W}
     # preallocate output
     β = Vector{Float64}(undef, N)
     ℓ = Vector{Float64}(undef, N)
     for (i, wi) ∈ enumerate(w)
         post = w[mod1(i + 1, N)] - wi
         pre = wi - w[mod1(i - 1, N)]
-        β[i] = angle(pre' * post) / π
+        β[i] = if isfinite(pre) && isfinite(post)
+            angle(pre' * post) / π
+        else
+            i ∈ keys(β_lu) || throw(ArgumentError("require β[$i] next to infinity"))
+            β_lu[i]
+        end
         ℓ[i] = abs(post)
     end
     (SVector{N}(β), SVector{N}(ℓ))
 end
 
-Polygon(w::SVector{N,W}) where {N,W} = Polygon(w, calc_β_ℓ(w)...)
+Polygon(w::SVector{N,W}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}()) where {N,W} =
+    Polygon(SVector{N,W}(w), calc_β_ℓ(w, β_lu)...)
 
-function Polygon(w::SVector{N,W}, β::SVector{N,F}) where {N,W,F}
-    ℓ = [abs(w[mod1(i + 1, N)] - w[i]) for i ∈ 1:N]
-    # todo: check supplied angles β for inconsistencies with supplied vertices w
-    Polygon(SVector{N,W}(w), SVector{N,F}(β), SVector{N,F}(ℓ))
-end
-
-function Polygon(w_base::SVector{B,W}, s::CyclicSymmetry{R}) where {B,W,R}
+function Polygon(
+    w_base::SVector{B,W},
+    s::CyclicSymmetry{R},
+    β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
+) where {B,W,R}
     N = B * R
-    w = SVector{N,W}(ntuple(i -> w_base[mod1(i, B)], N))
-    Polygon(w, s, calc_β_ℓ(w)...)
+    w = Vector{W}(undef, N)
+    for i ∈ 0:(R-1)
+        r = cispi(2i // R)
+        w[(1+B*i):(B*(i+1))] .= r .* w_base
+    end
+    w = SVector{N,W}(w)
+    β_lu = Dict{Int,Float64}()
+    for (k, β) ∈ pairs(β_lu_base)
+        for i ∈ 0:(R-1)
+            β_lu[B*i+k] = β
+        end
+    end
+    Polygon(w, s, calc_β_ℓ(w, β_lu)...)
 end
 
 function reflect(axis, point)
@@ -59,33 +73,50 @@ function reflect(axis, point)
     normalised_axis * conj(normalised_axis' * point)
 end
 
-make_mirror(w::SVector{B,W}, s::BilateralSymmetry{0}) where {B,W} =
-    SVector{2B,W}(w..., reflect.(s.axis, w)[end:-1:1])
+"""
+Assumes that the mirror image continues in the same order as the base,
+i.e., the last vertex in the base is connected to the first vertex in the
+image.
+"""
+make_mirror(w::SVector{B}, s::BilateralSymmetry{0}) where {B} =
+    SVector{2B}(w..., reflect.(s.axis, w)[end:-1:1]...)
+make_mirror(w::SVector{B}, s::BilateralSymmetry{1}) where {B} =
+    SVector{2B-1}(w..., reflect.(s.axis, w)[(end-1):-1:1]...)
+make_mirror(w::SVector{B}, s::BilateralSymmetry{2}) where {B} =
+    SVector{2B-2}(w..., reflect.(s.axis, w)[(end-1):-1:2]...)
 
-make_mirror(w::SVector{B,W}, s::BilateralSymmetry{2}) where {B,W} =
-    SVector{2B-2,W}(w..., reflect.(s.axis, w)[end-1:-1:2])
-
-function make_mirror(w::SVector{B,W}, s::BilateralSymmetry{1}) where {B,W}
-    w_r = reflect.(s.axis, w)
-    if w_r[1] ≈ w[1]
-        SVector{2B-1,W}(w..., w_r[end:-1:2]...)
-    else
-        SVector{2B-1,W}(w..., w_r[end-1:-1:1]...)
+function mirror_β_lu(K, β_lu_base)
+    β_lu = Dict{Int,Float64}()
+    for (k, β) ∈ pairs(β_lu_base)
+        β_lu[k] = β
+        β_lu[K-k] = β
     end
+    β_lu
 end
 
-function Polygon(w_base, symmetry::BilateralSymmetry)
+function Polygon(
+    w_base,
+    symmetry::BilateralSymmetry{P},
+    β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
+) where {P}
     w = make_mirror(w_base, symmetry)
-    Polygon(w, symmetry, calc_β_ℓ(w)...)
+    β_lu = mirror_β_lu(length(w) + min(1, P), β_lu_base)
+    Polygon(w, symmetry, calc_β_ℓ(w, β_lu)...)
 end
 
-function Polygon(w_base::SVector{B,W}, symmetry::DihedralSymmetry{R,P}) where {B,W,R,P}
+function Polygon(
+    w_base::SVector{B,W},
+    symmetry::DihedralSymmetry{R,P},
+    β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
+) where {B,W,R,P}
     # relies on assumption that axis includes a vertex if P = 1.
     w_rotbase = make_mirror(w_base, BilateralSymmetry{P}(symmetry.axis))
     if P == 2
-        w_rotbase = SVector{2B-3,W}(w_rotbase[1:end-1]...)
+        w_rotbase = SVector{2B-P-1,W}(w_rotbase[1:(end-1)]...)
     end
-    Polygon(w_rotbase, CyclicSymmetry{R}())
+    β_lu_rotbase = mirror_β_lu(length(w_rotbase) + 1, β_lu_base)
+    temp = Polygon(w_rotbase, CyclicSymmetry{R}(), β_lu_rotbase)
+    Polygon(temp.w, symmetry, temp.β, temp.ℓ)
 end
 
 num_independent_vertices(::Polygon{N,NoSymmetry}) where {N} = N
