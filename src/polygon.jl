@@ -23,7 +23,8 @@ struct Polygon{N,S<:AbstractSymmetry,W,F}
     end
 end
 
-Polygon(w, β, ℓ) = Polygon(w, classify_symmetry(w, β, ℓ), β, ℓ)
+Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F} =
+    Polygon(w, classify_symmetry(w, β, ℓ), β, ℓ)
 
 function calc_β_ℓ(w::SVector{N,W}) where {N,W}
     @assert count(isinf, w) == 0 "must specify angles if there are infinities"
