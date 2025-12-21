@@ -174,7 +174,9 @@ first_independent_vertex(poly::Polygon{N,<:BilateralSymmetry{0}}) where {N} = fi
 
 see BilateralSymmetry
 """
-function first_independent_vertex(poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,P}}) where {P}
+function first_independent_vertex(
+    poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,P}},
+) where {P}
     p = Polygon(poly.w, BilateralSymmetry{P}(poly.s.axis), poly.β, poly.ℓ)
     first_independent_vertex(p)
 end
