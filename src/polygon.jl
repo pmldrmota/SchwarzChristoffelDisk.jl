@@ -2,7 +2,7 @@ export Polygon, first_independent_vertex, num_independent_vertices
 
 using StaticArrays
 
-struct Polygon{N,S<:AbstractSymmetry,W,F}
+struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F}
     w::SVector{N,W}  # vertices w.r.t. centre of mass
     s::S
     β::SVector{N,F}  # left-turn angles
@@ -19,14 +19,14 @@ struct Polygon{N,S<:AbstractSymmetry,W,F}
         isnothing(double_∞) || throw(ArgumentError("remove consecutive infinities"))
         ∑β = sum(β)
         ∑β ≈ 2 || throw(ArgumentError("wrong angles (∑β=$∑β)"))
-        new{N,S,W,F}(w, s, β, ℓ)
+        new{N,S,W,F}(complex.(w), s, β, ℓ)
     end
 end
 
-Polygon(w::SVector{N,W}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,W,F} =
-    Polygon(w, classify_symmetry(w, β, ℓ), β, ℓ)
+Polygon(w::SVector{N}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,F} =
+    Polygon(complex.(w), classify_symmetry(w, β, ℓ), β, ℓ)
 
-function calc_β_ℓ(w::SVector{N,W}, β_lu::Dict{Int,<:Number}) where {N,W}
+function calc_β_ℓ(w::SVector{N,<:Complex}, β_lu::Dict{Int,<:Number}) where {N}
     # preallocate output
     β = Vector{Float64}(undef, N)
     ℓ = Vector{Float64}(undef, N)
@@ -35,30 +35,46 @@ function calc_β_ℓ(w::SVector{N,W}, β_lu::Dict{Int,<:Number}) where {N,W}
         pre = wi - w[mod1(i - 1, N)]
         β[i] = if isfinite(pre) && isfinite(post)
             angle(pre' * post) / π
-        else
-            i ∈ keys(β_lu) || throw(ArgumentError("require β[$i] next to infinity"))
+        elseif i ∈ keys(β_lu)
             β_lu[i]
+        elseif isinf(wi)
+            NaN
+        else
+            throw("require β[$i] next to infinity")
         end
         ℓ[i] = abs(post)
     end
+    # Infer β at infinity
+    count_nan = count(isnan, β)
+    if count_nan != 0
+        if count_nan == 1
+            idx = findfirst(isnan, β)
+            β[idx] = 2 - sum(filter(!isnan, β))
+        else
+            throw("Cannot infer β at multiple infinities")
+        end
+    end
+
     (SVector{N}(β), SVector{N}(ℓ))
 end
 
-Polygon(w::SVector{N,W}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}()) where {N,W} =
-    Polygon(SVector{N,W}(w), calc_β_ℓ(w, β_lu)...)
+function Polygon(w::SVector{N}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}()) where {N}
+    w = complex.(w)
+    Polygon(SVector{N}(w), calc_β_ℓ(w, β_lu)...)
+end
 
 function Polygon(
-    w_base::SVector{B,W},
+    w_base::SVector{B},
     s::CyclicSymmetry{R},
     β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
-) where {B,W,R}
+) where {B,R}
     N = B * R
-    w = Vector{W}(undef, N)
+    w = Vector{ComplexF64}(undef, N)
     for i ∈ 0:(R-1)
         r = cispi(2i // R)
         w[(1+B*i):(B*(i+1))] .= r .* w_base
     end
-    w = SVector{N,W}(w)
+    w = SVector{N}(w)
     β_lu = Dict{Int,Float64}()
     for (k, β) ∈ pairs(β_lu_base)
         for i ∈ 0:(R-1)
