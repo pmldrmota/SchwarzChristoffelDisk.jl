@@ -54,7 +54,7 @@ end
 function classify_symmetry(w::SVector{N}, β::SVector{N}, ℓ::SVector{N}) where {N}
     # want to preserve angle information on infinite vertices
     # replace all infinite edges with a unique finite length
-    my_inf = sum(filter(isfinite, ℓ))  # ∉ ℓ
+    my_inf = 1 + sum(filter(isfinite, ℓ))  # ∉ ℓ
     ℓ = SVector(replace(x -> isinf(x) ? my_inf : x, ℓ))
     L = SVector(ℓ .* cispi.(β))
     M = SVector(ℓ .* cispi.(circshift(β, -1)) |> reverse)
