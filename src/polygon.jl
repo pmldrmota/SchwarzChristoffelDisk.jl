@@ -85,6 +85,7 @@ function Polygon(
 end
 
 function reflect(axis, point)
+    isinf(point) && return point
     normalised_axis = axis / abs(axis)
     normalised_axis * conj(normalised_axis' * point)
 end
@@ -95,17 +96,29 @@ i.e., the last vertex in the base is connected to the first vertex in the
 image.
 """
 make_mirror(w::SVector{B}, s::BilateralSymmetry{0}) where {B} =
-    SVector{2B}(w..., reflect.(s.axis, w)[end:-1:1]...)
-make_mirror(w::SVector{B}, s::BilateralSymmetry{1}) where {B} =
-    SVector{2B-1}(w..., reflect.(s.axis, w)[(end-1):-1:1]...)
+    SVector{2B}(w..., reflect.(s.axis, w[end:-1:1])...)
+
+function make_mirror(w::SVector{B}, s::BilateralSymmetry{1}) where {B}
+    mirror = reflect.(s.axis, w[end:-1:1])
+    # Is [begin] or [end] on the symmetry axis?
+    # There cannot be 2 Infs next to each other left and right of the axis,
+    # therefore if there is an Inf at the boundary, it has to be on the axis.
+    rev = if w[begin] ≈ s.axis || isinf(w[begin])
+        mirror[1:end-1]
+    else
+        mirror[2:end]
+    end
+    SVector{2B-1}(w..., rev...)
+end
+
 make_mirror(w::SVector{B}, s::BilateralSymmetry{2}) where {B} =
-    SVector{2B-2}(w..., reflect.(s.axis, w)[(end-1):-1:2]...)
+    SVector{2B-2}(w..., reflect.(s.axis, w[(end-1):-1:2])...)
 
 function mirror_β_lu(K, β_lu_base)
     β_lu = Dict{Int,Float64}()
     for (k, β) ∈ pairs(β_lu_base)
         β_lu[k] = β
-        β_lu[K-k] = β
+        β_lu[K-k+1] = β
     end
     β_lu
 end
