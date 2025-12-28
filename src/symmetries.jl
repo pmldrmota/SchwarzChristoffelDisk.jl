@@ -1,6 +1,7 @@
 export NoSymmetry, CyclicSymmetry, BilateralSymmetry, DihedralSymmetry, classify_symmetry
 
 using StaticArrays
+import Base
 
 abstract type AbstractSymmetry end
 
@@ -44,6 +45,13 @@ struct DihedralSymmetry{R,P,T} <: AbstractSymmetry
         new{R,P,T}(axis)
     end
 end
+
+is_on(axis, point) = abs(imag(axis' * point)) < abs(axis) * √eps()
+
+Base.:(==)(a::BilateralSymmetry{P}, b::BilateralSymmetry{P}) where {P} =
+    is_on(a.axis, b.axis)
+Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
+    any(i -> is_on(a.axis, cispi(2i // R) * b.axis), 1:R)
 
 """Classify the symmetry group of a polygon
 
