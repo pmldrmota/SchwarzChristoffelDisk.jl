@@ -58,7 +58,11 @@ Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
 :param β: left-turn angles at the nodes of the polygon
 :returns: instance of a subtype of AbstractSymmetry
 """
-function classify_symmetry(w::StaticVector{N}, β::StaticVector{N}, ℓ::StaticVector{N}) where {N}
+function classify_symmetry(
+    w::StaticVector{N},
+    β::StaticVector{N},
+    ℓ::StaticVector{N},
+) where {N}
     # want to preserve angle information on infinite vertices
     # replace all infinite edges with a unique finite length
     my_inf = 1 + sum(filter(isfinite, ℓ))  # ∉ ℓ
@@ -75,7 +79,7 @@ function classify_symmetry(w::StaticVector{N}, β::StaticVector{N}, ℓ::StaticV
     has_mirror = !isnothing(refl₁)
     if has_mirror
         wc(i) = w[mod1(i, N)]
-        circular_average(a, b) = cis((angle(a) + angle(b)) / 2)
+        circular_average(a, b) = sqrt(a * b / (abs(a) * abs(b)))
 
         axis(refl) =
             if iseven(refl)
