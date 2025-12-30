@@ -14,21 +14,6 @@ Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
 """
 struct CyclicSymmetry{R} <: AbstractSymmetry end
 
-"""Mirror symetry
-
-Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
-The field `axis` stores the axis of symmetry.
-If `P > 0`, then `axis` is assumed to coincide with a vertex.
-"""
-struct BilateralSymmetry{P,T} <: AbstractSymmetry
-    axis::Complex{T}
-
-    function BilateralSymmetry{P}(axis::Complex{T}) where {P,T}
-        abs(axis) < √eps() && throw(ArgumentError("axis must be nonzero"))
-        new{P,T}(axis)
-    end
-end
-
 """Regular polygon symmetry
 
 Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
@@ -37,19 +22,29 @@ The field `axis` stores one axis of symmetry. The other ones can be constructed
 by rotation.
 If `P > 0`, then `axis` is assumed to coincide with a vertex.
 """
-struct DihedralSymmetry{R,P,T} <: AbstractSymmetry
-    axis::Complex{T}
+struct DihedralSymmetry{R,P,T<:Complex} <: AbstractSymmetry
+    axis::T
 
-    function DihedralSymmetry{R,P}(axis::Complex{T}) where {R,P,T}
+    function DihedralSymmetry{R,P}(axis) where {R,P}
+        axis = complex(axis)
         abs(axis) < √eps() && throw(ArgumentError("axis must be nonzero"))
-        new{R,P,T}(axis)
+        new{R,P,typeof(axis)}(axis)
     end
 end
 
+"""Mirror symetry (alias for DihedralSymmetry with `R=1`)
+
+Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
+The field `axis` stores the axis of symmetry.
+If `P > 0`, then `axis` is assumed to coincide with a vertex.
+"""
+const BilateralSymmetry{P,T} = DihedralSymmetry{1,P,T}
+BilateralSymmetry{P}(axis) where {P} = DihedralSymmetry{1,P}(axis)
+
+"Helper function to determine whether a point lies on an axis"
 is_on(axis, point) = abs(imag(axis' * point)) < abs(axis) * √eps()
 
-Base.:(==)(a::BilateralSymmetry{P}, b::BilateralSymmetry{P}) where {P} =
-    is_on(a.axis, b.axis)
+"Equality check taking into account symmetric transformations"
 Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
     any(i -> is_on(a.axis, cispi(2i // R) * b.axis), 1:R)
 

@@ -184,7 +184,6 @@ end
 
 num_independent_vertices(::Polygon{N,NoSymmetry}) where {N} = N
 num_independent_vertices(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = N ÷ R
-num_independent_vertices(::Polygon{N,<:BilateralSymmetry{P}}) where {N,P} = P + (N - P) ÷ 2
 num_independent_vertices(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     P + (N ÷ R - P) ÷ 2
 
@@ -197,14 +196,14 @@ function is_left(axis, point)
     u < 0 && abs(u) > abs(axis) * √eps()
 end
 
-""" Bilateral symmetry start index
+""" Dihedral symmetry start index
 
 For P=1 and P=2 we search for patterns
      l.r
      l∞r
     l∞.∞r
 """
-first_independent_vertex(poly::Polygon{N,<:BilateralSymmetry}) where {N} =
+first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry}) where {N} =
     findfirst(i -> begin
         w = poly.w[i]
         if isinf(w)
@@ -217,12 +216,12 @@ first_independent_vertex(poly::Polygon{N,<:BilateralSymmetry}) where {N} =
         end
     end, 1:N)
 
-""" Bilateral symmetry start index
+""" Dihedral symmetry start index
 
 For P=0 we search for the finite vertices whose edge is divided by the axis.
 pattern: lr
 """
-first_independent_vertex(poly::Polygon{N,<:BilateralSymmetry{0}}) where {N} = findfirst(
+first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{<:Any,0}}) where {N} = findfirst(
     i -> begin
         w₋ = poly.w[mod1(i - 1, N)]
         w = poly.w[i]
@@ -232,14 +231,3 @@ first_independent_vertex(poly::Polygon{N,<:BilateralSymmetry{0}}) where {N} = fi
     end,
     1:N,
 )
-
-""" Dihedral symmetry start index
-
-see BilateralSymmetry
-"""
-function first_independent_vertex(
-    poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,P}},
-) where {P}
-    p = Polygon(poly.w, BilateralSymmetry{P}(poly.s.axis), poly.β, poly.ℓ)
-    first_independent_vertex(p)
-end
