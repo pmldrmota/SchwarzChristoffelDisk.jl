@@ -23,71 +23,85 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
     end
 end
 
-Polygon(w::SVector{N}, β::SVector{N,F}, ℓ::SVector{N,F}) where {N,F} =
-    Polygon(complex.(w), classify_symmetry(w, β, ℓ), β, ℓ)
+"""Calculate left-turn angles and edge lengths from vertices `w`
 
-function calc_β_ℓ(w::SVector{N,<:Complex}, β_lu::Dict{Int,<:Number}) where {N}
+The returned β may contain `NaN`s.
+"""
+function calc_β_ℓ(w::StaticVector{N}, β_lu::Dict{Int,<:Number}) where {N}
     # preallocate output
-    β = Vector{Float64}(undef, N)
-    ℓ = Vector{Float64}(undef, N)
+    β = MVector{N,Float64}(undef)
+    ℓ = MVector{N,Float64}(undef)
     for (i, wi) ∈ enumerate(w)
         post = w[mod1(i + 1, N)] - wi
         pre = wi - w[mod1(i - 1, N)]
         β[i] = if isfinite(pre) && isfinite(post)
+            haskey(β_lu, i) && @warn "β_lu[$i] provided but ignored"
             angle(pre' * post) / π
-        elseif i ∈ keys(β_lu)
+        elseif haskey(β_lu, i)
             β_lu[i]
-        elseif isinf(wi)
-            NaN
         else
-            throw("require β[$i] next to infinity")
+            NaN
         end
         ℓ[i] = abs(post)
     end
-    # Infer β at infinity
-    count_nan = count(isnan, β)
-    if count_nan != 0
-        if count_nan == 1
+    (β, ℓ)
+end
+
+"Construct Polygon and infer symmetry from nodes and angles"
+function Polygon(w::SVector{N}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}()) where {N}
+    w = complex.(w)
+    (β, ℓ) = calc_β_ℓ(w, β_lu)
+    num_missing = count(isnan, β)
+    if num_missing > 0
+        if num_missing == 1
             idx = findfirst(isnan, β)
             β[idx] = 2 - sum(filter(!isnan, β))
         else
-            throw("Cannot infer β at multiple infinities")
+            throw("Polygon underconstrained: missing $(num_missing-1) left-turn angles")
         end
     end
-
-    (SVector{N}(β), SVector{N}(ℓ))
+    s = classify_symmetry(w, β, ℓ)
+    Polygon(w, s, β, ℓ)
 end
 
-function Polygon(w::SVector{N}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}()) where {N}
-    w = complex.(w)
-    Polygon(SVector{N}(w), calc_β_ℓ(w, β_lu)...)
-end
-
-function Polygon(
-    w_base::SVector{B},
-    s::CyclicSymmetry{R},
-    β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
-) where {B,R}
+function make_rotation!(w_base::SVector{B}, β_lu, ::CyclicSymmetry{R}) where {B,R}
     N = B * R
-    w = Vector{ComplexF64}(undef, N)
+    # apply rotational symmetry to vertices
+    w = MVector{N,ComplexF64}(undef)
     for i ∈ 0:(R-1)
         r = cispi(2i // R)
         w[(1+B*i):(B*(i+1))] .= r .* w_base
     end
-    w = SVector{N}(w)
-    β_lu = Dict{Int,Float64}()
-    for (k, β) ∈ pairs(β_lu_base)
+    # extend left-turn angle lookup to full polygon
+    for (k, β) ∈ pairs(β_lu)
         for i ∈ 0:(R-1)
             β_lu[B*i+k] = β
         end
     end
-    Polygon(w, s, calc_β_ℓ(w, β_lu)...)
+    SVector(w)
 end
 
-function reflect(axis, point)
-    isinf(point) && return point
-    normalised_axis = axis / abs(axis)
-    normalised_axis * conj(normalised_axis' * point)
+"Construct Polygon with cyclic symmetry"
+function Polygon(
+    w_base::SVector{B},
+    s::CyclicSymmetry{R},
+    β_lu::Dict{Int,<:Number} = Dict{Int,Float64}(),
+) where {B,R}
+    w = make_rotation!(w_base, β_lu, s)
+    # calculate left-turn angles and edge lengths for full polygon
+    (β, ℓ) = calc_β_ℓ(w, β_lu)
+    # try to infer the value of missing left-turn angles (indicated as NaNs)
+    num_missing = count(isnan, β)
+    if num_missing > 0
+        if num_missing == R
+            missing_value = (2 - sum(filter(!isnan, β))) / R
+            β[findall(isnan, β)] .= missing_value
+        else
+            nd = num_missing ÷ R - 1
+            throw("Cyclic polygon underconstrained: missing $nd left-turn angles")
+        end
+    end
+    Polygon(w, s, β, ℓ)
 end
 
 """
@@ -95,57 +109,77 @@ Assumes that the mirror image continues in the same order as the base,
 i.e., the last vertex in the base is connected to the first vertex in the
 image.
 """
-make_mirror(w::SVector{B}, s::BilateralSymmetry{0}) where {B} =
-    SVector{2B}(w..., reflect.(s.axis, w[end:-1:1])...)
-
-function make_mirror(w::SVector{B}, s::BilateralSymmetry{1}) where {B}
-    mirror = reflect.(s.axis, w[end:-1:1])
+function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where {B,P}
+    mirror = map(point -> if isinf(point)
+        point
+    else
+        normalised_axis = s.axis / abs(s.axis)
+        normalised_axis * conj(normalised_axis' * point)
+    end, w)
     # Is [begin] or [end] on the symmetry axis?
     # There cannot be 2 Infs next to each other left and right of the axis,
     # therefore if there is an Inf at the boundary, it has to be on the axis.
-    rev = if w[begin] ≈ s.axis || isinf(w[begin])
-        mirror[1:end-1]
-    else
-        mirror[2:end]
+    rng = if P == 0
+        B:-1:1
+    elseif P == 1
+        if is_on(s.axis, w[begin]) || isinf(w[begin])
+            B:-1:2
+        else
+            (B-1):-1:1
+        end
+    elseif P == 2
+        (B-1):-1:2
     end
-    SVector{2B-1}(w..., rev...)
-end
-
-make_mirror(w::SVector{B}, s::BilateralSymmetry{2}) where {B} =
-    SVector{2B-2}(w..., reflect.(s.axis, w[(end-1):-1:2])...)
-
-function mirror_β_lu(K, β_lu_base)
-    β_lu = Dict{Int,Float64}()
-    for (k, β) ∈ pairs(β_lu_base)
-        β_lu[k] = β
-        β_lu[K-k+1] = β
+    for (k, β) ∈ pairs(β_lu)
+        β_lu[1+B+rng.start-k] = β
     end
-    β_lu
+    SVector{2B-P}(w..., mirror[rng]...)
 end
 
 function Polygon(
-    w_base,
+    w_base::SVector{B,W},
     symmetry::BilateralSymmetry{P},
     β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
-) where {P}
-    w = make_mirror(w_base, symmetry)
-    β_lu = mirror_β_lu(length(w) + min(1, P), β_lu_base)
-    Polygon(w, symmetry, calc_β_ℓ(w, β_lu)...)
+) where {B,W,P}
+    w_rotbase = make_mirror!(w_base, β_lu_base, symmetry)
+    (β, ℓ) = calc_β_ℓ(w_rotbase, β_lu_base)
+    num_missing = count(isnan, β)
+    if num_missing > 0
+        missing_value = (2 - sum(filter(!isnan, β)))
+        if num_missing == 1
+            # infinity on axis
+            β[findfirst(isnan, β)] = missing_value
+        elseif num_missing == 2 && count(isinf, w_base) == 1
+            # mirrored infinities, not on axis
+            β[findall(isnan, β)] .= missing_value / 2
+        else
+            throw("Bilateral polygon underconstrained: missing left-turn angles")
+        end
+    end
+    Polygon(w_rotbase, symmetry, β, ℓ)
 end
 
 function Polygon(
     w_base::SVector{B,W},
     symmetry::DihedralSymmetry{R,P},
-    β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
+    β_lu::Dict{Int,<:Number} = Dict{Int,Float64}(),
 ) where {B,W,R,P}
-    # relies on assumption that axis includes a vertex if P = 1.
-    w_rotbase = make_mirror(w_base, BilateralSymmetry{P}(symmetry.axis))
-    if P == 2
-        w_rotbase = SVector{2B-P-1,W}(w_rotbase[1:(end-1)]...)
+    w_rotbase = make_mirror!(w_base, β_lu, symmetry)
+    w = make_rotation!(w_rotbase, β_lu, CyclicSymmetry{R}())
+
+    (β, ℓ) = calc_β_ℓ(w, β_lu)
+    num_missing = count(isnan, β)
+    if num_missing > 0
+        missing_value = (2 - sum(filter(!isnan, β)))
+        if num_missing == R
+            β[findall(isnan, β)] .= missing_value / R
+        elseif num_missing == 2R && count(isinf, w_base) == 1
+            β[findall(isnan, β)] .= missing_value / 2R
+        else
+            throw("Dihedral polygon underconstrained: missing left-turn angles")
+        end
     end
-    β_lu_rotbase = mirror_β_lu(length(w_rotbase) + 1, β_lu_base)
-    temp = Polygon(w_rotbase, CyclicSymmetry{R}(), β_lu_rotbase)
-    Polygon(temp.w, symmetry, temp.β, temp.ℓ)
+    Polygon(w, symmetry, β, ℓ)
 end
 
 num_independent_vertices(::Polygon{N,NoSymmetry}) where {N} = N
