@@ -41,8 +41,12 @@ If `P > 0`, then `axis` is assumed to coincide with a vertex.
 const BilateralSymmetry{P,T} = DihedralSymmetry{1,P,T}
 BilateralSymmetry{P}(axis) where {P} = DihedralSymmetry{1,P}(axis)
 
-"Helper function to determine whether a point lies on an axis"
-is_on(axis, point) = abs(imag(axis' * point)) < abs(axis) * √eps()
+"Helper function to determine on which side of the axis a point is"
+function which_side(axis, point)
+    u = imag(axis' * point)
+    abs(u) < abs(axis) * √eps() ? 0 : sign(u)
+end
+is_on(axis, point) = which_side(axis, point) |> iszero
 
 "Equality check taking into account symmetric transformations"
 Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
