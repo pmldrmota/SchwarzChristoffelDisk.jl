@@ -269,7 +269,7 @@ end
     @test_nowarn sc_parameter_problem(poly)
 
     # Infinite case
-    poly = Polygon(SA[1.0, 1.0im, Inf], SA[1/3, 1/3, 2-2/3])
+    poly = Polygon(SA[1.0, 1.0im, Inf], Dict([1, 2] .=> [1/3, 1/3]))
     @test_nowarn sc_parameter_problem(poly)
 end
 
