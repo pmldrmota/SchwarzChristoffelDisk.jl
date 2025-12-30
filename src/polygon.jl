@@ -16,7 +16,7 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
     ) where {N,S}
         N < 3 && throw(ArgumentError("Polygon must have at least 3 nodes"))
         double_∞ = findfirst(i -> isinf(w[i]) && isinf(w[mod1(i + 1, N)]), 1:N)
-        isnothing(double_∞) || throw(ArgumentError("remove consecutive infinities"))
+        isnothing(double_∞) || throw(ArgumentError("found consecutive infinities"))
         ∑β = sum(β)
         ∑β ≈ 2 || throw(ArgumentError("wrong angles (∑β=$∑β)"))
         new{N,S,eltype(w),eltype(β),eltype(ℓ)}(SVector(w), s, SVector(β), SVector(ℓ))
@@ -57,7 +57,7 @@ function Polygon(w::SVector{N}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}())
             idx = findfirst(isnan, β)
             β[idx] = 2 - sum(filter(!isnan, β))
         else
-            throw("Polygon underconstrained: missing $(num_missing-1) left-turn angles")
+            throw(ArgumentError("missing $(num_missing-1) left-turn angles"))
         end
     end
     s = classify_symmetry(w, β, ℓ)
@@ -98,7 +98,7 @@ function Polygon(
             β[findall(isnan, β)] .= missing_value
         else
             nd = num_missing ÷ R - 1
-            throw("Cyclic polygon underconstrained: missing $nd left-turn angles")
+            throw(ArgumentError("missing $nd left-turn angles"))
         end
     end
     Polygon(w, s, β, ℓ)
@@ -153,7 +153,7 @@ function Polygon(
             # mirrored infinities, not on axis
             β[findall(isnan, β)] .= missing_value / 2
         else
-            throw("Bilateral polygon underconstrained: missing left-turn angles")
+            throw(ArgumentError("missing left-turn angles"))
         end
     end
     Polygon(w_rotbase, symmetry, β, ℓ)
@@ -176,7 +176,7 @@ function Polygon(
         elseif num_missing == 2R && count(isinf, w_base) == 1
             β[findall(isnan, β)] .= missing_value / 2R
         else
-            throw("Dihedral polygon underconstrained: missing left-turn angles")
+            throw(ArgumentError("missing left-turn angles"))
         end
     end
     Polygon(w, symmetry, β, ℓ)

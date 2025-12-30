@@ -53,7 +53,7 @@ end
 
 @testset "Polygon" begin
     # Test whether error is thrown if N < 3
-    @test_throws Polygon(SA[-1, 1])
+    @test_throws ArgumentError Polygon(SA[-1, 1])
 
     # NoSymmetry (finite)
     poly = Polygon(SA[0, 1, 1+1im, 2im])
@@ -64,7 +64,7 @@ end
     @test first_independent_vertex(poly) == 1
 
     # NoSymmetry (infinite)
-    @test_throws Polygon(SA[0, 1, 1+1im, Inf, 2im])
+    @test_throws ArgumentError Polygon(SA[0, 1, 1+1im, Inf, 2im])
     poly = Polygon(SA[0, 1, 1+1im, Inf, 2im], Dict(3 => -0.25, 4 => 1.25, 5 => 0))
     @test all(poly.β .== [0.5, 0.5, -0.25, 1.25, 0])
     @test all(poly.ℓ .== [1, 1, Inf, Inf, 2])
