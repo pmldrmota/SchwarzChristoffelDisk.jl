@@ -2,24 +2,24 @@ export Polygon, first_independent_vertex, num_independent_vertices
 
 using StaticArrays
 
-struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F}
+struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
     w::SVector{N,W}  # vertices w.r.t. centre of mass
     s::S
     β::SVector{N,F}  # left-turn angles
-    ℓ::SVector{N,F}  # length of edges [i,i+1]
+    ℓ::SVector{N,G}  # length of edges [i,i+1]
 
     function Polygon(
-        w::SVector{N,W},
+        w::StaticVector{N},
         s::S,
-        β::SVector{N,F},
-        ℓ::SVector{N,F},
-    ) where {N,S,W,F}
+        β::StaticVector{N},
+        ℓ::StaticVector{N},
+    ) where {N,S}
         N < 3 && throw(ArgumentError("Polygon must have at least 3 nodes"))
         double_∞ = findfirst(i -> isinf(w[i]) && isinf(w[mod1(i + 1, N)]), 1:N)
         isnothing(double_∞) || throw(ArgumentError("remove consecutive infinities"))
         ∑β = sum(β)
         ∑β ≈ 2 || throw(ArgumentError("wrong angles (∑β=$∑β)"))
-        new{N,S,W,F}(complex.(w), s, β, ℓ)
+        new{N,S,eltype(w),eltype(β),eltype(ℓ)}(SVector(w), s, SVector(β), SVector(ℓ))
     end
 end
 
