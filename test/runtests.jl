@@ -312,13 +312,72 @@ end
 end
 
 @testset "ParameterProblem" begin
-    # Finite case
-    poly = Polygon(SA[1.0+0.5im, 0.1+1.0im, -(1.0+0.5im), -(0.1+1.0im)])
-    @test_nowarn sc_parameter_problem(poly)
 
-    # Infinite case
-    poly = Polygon(SA[1.0, 1.0im, Inf], Dict([1, 2] .=> [1/3, 1/3]))
-    @test_nowarn sc_parameter_problem(poly)
+    function test_circshift_poly(poly::Polygon{N}) where {N}
+        for k ∈ 0:(N-1)
+            @test_nowarn sc_parameter_problem(
+                Polygon(
+                    SVector{N}(ntuple(i -> poly.w[mod1(i - k, N)], N)),
+                    poly.s,
+                    SVector{N}(ntuple(i -> poly.β[mod1(i - k, N)], N)),
+                    SVector{N}(ntuple(i -> poly.ℓ[mod1(i - k, N)], N)),
+                ),
+            )
+        end
+    end
+
+    @testset "NoSymmetry" begin
+        # NoSymmetry (finite)
+        @testset let poly = Polygon(SA[-1-1im, 1-1im, 1+1im, -1+2im])
+            test_circshift_poly(poly)
+        end
+    end
+
+    @testset "CyclicSymmetry" begin
+        # CyclicSymmetry (finite)
+        @testset let poly = Polygon(SA[1im, -1+1im], CyclicSymmetry{2}())
+            test_circshift_poly(poly)
+        end
+    end
+
+    @testset "BilateralSymmetry" begin
+        # BilateralSymmetry{0} (finite)
+        @testset let poly = Polygon(SA[-1+1im, -2-1im], BilateralSymmetry{0}(1im))
+            test_circshift_poly(poly)
+        end
+
+        # BilateralSymmetry{1} (finite)
+        @testset let poly = Polygon(SA[1im, -1-1im], BilateralSymmetry{1}(1im))
+            test_circshift_poly(poly)
+        end
+
+        # BilateralSymmetry{2} (finite)
+        @testset let poly = Polygon(SA[1im, -1, -2im], BilateralSymmetry{2}(1im))
+            test_circshift_poly(poly)
+        end
+    end
+
+    @testset "DihedralSymmetry" begin
+        # DihedralSymmetry{2,0} (finite)
+        @testset let poly = Polygon(SA[0.5+1im], DihedralSymmetry{2,0}(1im))
+            test_circshift_poly(poly)
+        end
+
+        # DihedralSymmetry{2,1} (finite)
+        @testset let poly = Polygon(SA[1+1im, 2im], DihedralSymmetry{2,1}(1im))
+            test_circshift_poly(poly)
+        end
+
+        # DihedralSymmetry{4,2} (finite)
+        @testset let poly = Polygon(SA[1+1im, 0.5+1im, 2im], DihedralSymmetry{4,2}(2im))
+            test_circshift_poly(poly)
+        end
+
+        # DihedralSymmetry{2,2} (finite)
+        @testset let poly = Polygon(SA[2, 1+0.5im, 2.5im], DihedralSymmetry{2,2}(2im))
+            test_circshift_poly(poly)
+        end
+    end
 end
 
 @testset "InverseTransformation" begin
