@@ -35,17 +35,20 @@ prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,0}) where {R,V} =
     prevertex_params(MVector{2V}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,1}) where {R,V} =
-    prevertex_params(MVector{2V+1}(v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
+    prevertex_params(MVector{2V+1}(0, v..., -v[end:-1:1]...), CyclicSymmetry{R}())
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,2}) where {R,V} =
-    prevertex_params(MVector{2V+2}(v..., 0, -v[end:-1:1]..., 0), CyclicSymmetry{R}())
+    prevertex_params(MVector{2V+2}(0, v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
 
 circshift_noalloc_poplast(v::MVector{V}, Δ::Int) where {V} =
-    MVector{V - 1}(ntuple(i -> v[mod1(i - Δ, V)], V - 1))
+    MVector{V-1}(ntuple(i -> v[mod1(i - Δ, V)], V - 1))
 
 prevertices(v, ::NoSymmetry, ::Int) = v |> y_to_θ
-prevertices(v, s::DihedralSymmetry{<:Any,2}, kN) =
-    circshift_noalloc_poplast(prevertex_params(v, s), kN) |> y_to_θ
-prevertices(v, s, kN) = circshift_noalloc_poplast(prevertex_params(v, s), kN+1) |> y_to_θ
+prevertices(v, s::CyclicSymmetry, ::Int) =
+    circshift_noalloc_poplast(prevertex_params(v, s), 0) |> y_to_θ
+prevertices(v, s::DihedralSymmetry{<:Any,0}, kN) =
+    circshift_noalloc_poplast(prevertex_params(v, s), kN-1) |> y_to_θ
+prevertices(v, s::DihedralSymmetry, kN) =
+    circshift_noalloc_poplast(prevertex_params(v, s), kN-2) |> y_to_θ
 
 struct ProblemIndices{X,L}
     kN::Int
@@ -54,40 +57,22 @@ struct ProblemIndices{X,L}
 
     function ProblemIndices(poly::Polygon{N}) where {N}
         idx₁ = first_independent_vertex(poly)
-        n = num_independent_vertices(poly)
-        range = SVector{n}(mod1(idx₁ + i, N) for i ∈ 0:(n-1))
+        num_free = length(free_params(poly))
+        num_infs = count(isinf, poly.w)
 
-        # last one reaches outside the symmetry-generating set
-        k_len = filter(k -> isfinite(poly.ℓ[k]), range)
-        # use the first one as kN
-        kN = popfirst!(k_len)
-        # the connected vertex to fix the rotation and translation
-        k1 = mod1(kN + 1, N)
-
-        # we need one fixed vertex per segment between infinities
-        k_fix = Int64[k1]
-        # add the one before each infinity / last in range
-        k_d = range[1]
-        skip_current = (k_d == k1)
-        for k ∈ range[2:end]
-            if k == k1
-                skip_current = true
+        if num_infs == 0
+            kN = idx₁
+            if num_free == 1
+                return new{0,1}(kN, SVector{0}(), SVector{1}(kN))
+            else
+                k_fix = SVector{1}(mod1(kN + 1, N))
+                num_ℓ = num_free - 2
+                k_len = SVector{num_ℓ}(mod1(kN + i, N) for i ∈ 1:num_ℓ)
+                return new{1,num_ℓ}(kN, k_fix, k_len)
             end
-            if isinf(poly.w[k]) || k == range[end]
-                if !skip_current
-                    push!(k_fix, k_d)
-                end
-                skip_current = false
-            end
-            k_d = k
+        else
+            throw(ErrorException("ProblemIndices not implemented for infinities"))
         end
-
-        # need indices of finite ℓ
-        num_x = length(k_fix)
-        k_fix = SVector{num_x}(k_fix)
-        num_ℓ = length(free_params(poly)) - 2 * num_x
-        k_len = SVector{num_ℓ}(k_len[1:num_ℓ])
-        new{num_x,num_ℓ,Int64}(kN, k_fix, k_len)
     end
 end
 

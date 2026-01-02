@@ -190,36 +190,36 @@ num_independent_vertices(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = N ÷ R
 num_independent_vertices(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     P + (N ÷ R - P) ÷ 2
 
-"Symmetry start index"
-first_independent_vertex(::Polygon{<:Any,NoSymmetry}) = 1
-first_independent_vertex(::Polygon{<:Any,<:CyclicSymmetry}) = 1
+"""First independent vertex
 
-""" Dihedral symmetry start index
+For P=0 we search for the finite vertices whose edge is divided by the axis.
+pattern: lr
 
 For P=1 and P=2 we search for patterns
      l.r
      l∞r
     l∞.∞r
+and return the index of the first one after the axis itself.
+The vertex on the axis is not really independent because can be found with
+the left-turn angle information.
 """
-first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry}) where {N} = findfirst(
-    i -> begin
-        w = poly.w[i]
-        if isinf(w)
-            w₋ = poly.w[mod1(i - 1, N)]
-            w₊ = poly.w[mod1(i + 1, N)]
-            which_side(poly.s.axis, w₋) * which_side(poly.s.axis, w₊) < 0
-        else
-            is_on(poly.s.axis, w)
-        end
-    end,
-    1:N,
+first_independent_vertex(::Polygon) = 1
+first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry}) where {N} = mod1(
+    findfirst(
+        i -> begin
+            w = poly.w[i]
+            if isinf(w)
+                w₋ = poly.w[mod1(i - 1, N)]
+                w₊ = poly.w[mod1(i + 1, N)]
+                which_side(poly.s.axis, w₋) * which_side(poly.s.axis, w₊) < 0
+            else
+                is_on(poly.s.axis, w)
+            end
+        end,
+        1:N,
+    ) + 1,
+    N,
 )
-
-""" Dihedral symmetry start index
-
-For P=0 we search for the finite vertices whose edge is divided by the axis.
-pattern: lr
-"""
 first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{<:Any,0}}) where {N} =
     findfirst(
         i -> begin
