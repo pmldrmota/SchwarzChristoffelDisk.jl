@@ -1,6 +1,5 @@
 export sc_parameter_problem
 
-using SchwarzChristoffelDisk: Polygon
 using NLsolve, StaticArrays
 
 """Convert `y` to `θ` such that `θ` is sorted
@@ -17,7 +16,7 @@ end
 """
 function sc_fix!(f, θ, kN, wN)
     f.z .= cispi.(θ)
-    @assert !any(isnan.(f.z)) "sc_fix! got NaN output $(f.z) from $θ."
+    any(isnan, f.z) && error("sc_fix! got NaN output from θ=$θ.")
 
     # evaluate image vertices with unit constant
     f.c = 1
@@ -28,31 +27,30 @@ end
 # dispatch free parameters based on typed symmetry
 free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
 free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = @MVector zeros(N ÷ R)
-free_params(::Polygon{N,<:BilateralSymmetry{P}}) where {N,P} = @MVector zeros((N - P) ÷ 2)
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
-# dispatch prevertices using typed symmetry
-prevertices(v::MVector, ::NoSymmetry) = v |> y_to_θ
-prevertices(v::MVector{V,T}, ::CyclicSymmetry{R}) where {V,T,R} =
-    MVector{R * V - 1,T}(ntuple(i -> v[mod1(i, V)], R * V - 1)) |> y_to_θ
-prevertices(v::MVector{V,T}, ::BilateralSymmetry{0}) where {V,T} =
-    MVector{2 * V - 1,T}(v..., -v[end:-1:2]...) |> y_to_θ
-prevertices(v::MVector{V,T}, ::BilateralSymmetry{1}) where {V,T} =
-    MVector{2 * V,T}(v..., 0, -v[end:-1:2]...) |> y_to_θ
-prevertices(v::MVector{V,T}, ::BilateralSymmetry{2}) where {V,T} =
-    MVector{2 * V + 1,T}(v..., 0, -v[end:-1:1]...) |> y_to_θ
-prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,0}) where {V,T,R} =
-    prevertices(MVector{2 * V,T}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
-prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,1}) where {V,T,R} =
-    prevertices(MVector{2 * V + 1,T}(v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
-prevertices(v::MVector{V,T}, ::DihedralSymmetry{R,2}) where {V,T,R} =
-    prevertices(MVector{2 * V + 2,T}(v..., 0, -v[end:-1:1]..., 0), CyclicSymmetry{R}())
+prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
+    MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
+prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,0}) where {R,V} =
+    prevertex_params(MVector{2V}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
+prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,1}) where {R,V} =
+    prevertex_params(MVector{2V+1}(v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
+prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,2}) where {R,V} =
+    prevertex_params(MVector{2V+2}(v..., 0, -v[end:-1:1]..., 0), CyclicSymmetry{R}())
 
-struct ProblemIndices{X,L,T}
-    kN::T
-    k_fix::SVector{X,T}
-    k_len::SVector{L,T}
+circshift_noalloc_poplast(v::MVector{V}, Δ::Int) where {V} =
+    MVector{V - 1}(ntuple(i -> v[mod1(i - Δ, V)], V - 1))
+
+prevertices(v, ::NoSymmetry, ::Int) = v |> y_to_θ
+prevertices(v, s::DihedralSymmetry{<:Any,2}, kN) =
+    circshift_noalloc_poplast(prevertex_params(v, s), kN) |> y_to_θ
+prevertices(v, s, kN) = circshift_noalloc_poplast(prevertex_params(v, s), kN+1) |> y_to_θ
+
+struct ProblemIndices{X,L}
+    kN::Int
+    k_fix::SVector{X,Int}
+    k_len::SVector{L,Int}
 
     function ProblemIndices(poly::Polygon{N}) where {N}
         idx₁ = first_independent_vertex(poly)
@@ -93,8 +91,14 @@ struct ProblemIndices{X,L,T}
     end
 end
 
-function cost_function!(F, x, f, poly, idxs::ProblemIndices{X}) where {X}
-    sc_fix!(f, prevertices(x, poly.s), idxs.kN, poly.w[idxs.kN])
+function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
+    sc_fix!(f, prevertices(x, poly.s, idxs.kN), idxs.kN, poly.w[idxs.kN])
+    k = idxs.k_len[1]
+    F[1] = abs(sc_segment(f, k)) - poly.ℓ[k]
+end
+
+function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
+    sc_fix!(f, prevertices(x, poly.s, idxs.kN), idxs.kN, poly.w[idxs.kN])
 
     # fix one vertex per component - 2 real conditions each
     @inbounds for (i, k) ∈ enumerate(idxs.k_fix)
@@ -108,31 +112,27 @@ function cost_function!(F, x, f, poly, idxs::ProblemIndices{X}) where {X}
     end
 end
 
-function sc_parameter_problem(poly::Polygon{N}) where {N}
-    # todo: order of prevertices is inconsistent
-    (sol, f) = if num_independent_vertices(poly) == 1
-        # trivial case does not require NLsolve
-        k = findfirst(isfinite, poly.w)
-        θ₀ = prevertices(free_params(poly), poly.s)
-        f = SchwarzChristoffel(θ₀, poly.β)
-        sc_fix!(f, θ₀, k, poly.w[k])
-        (nothing, f)
-    else
-        (p, idxs) = try
-            (poly, ProblemIndices(poly))
-        catch
-            p = Polygon(poly.w, NoSymmetry(), poly.β, poly.ℓ)
-            (p, ProblemIndices(p))
-        end
-        x₀ = free_params(p)
-        f = SchwarzChristoffel(prevertices(x₀, p.s), p.β)
-        # solve
-        sol = nlsolve((F, x) -> cost_function!(F, x, f, p, idxs), x₀)
-        # apply solution
-        sc_fix!(f, prevertices(sol.zero, p.s), idxs.kN, p.w[idxs.kN])
-        (sol, f)
-    end
-    # test
-    !sc_test_ok(f, poly.w) && @warn "parameter_problem failed"
+function solve_parameter_problem(x₀::StaticVector{0}, poly)
+    # trivial case does not require NLsolve
+    k = findfirst(isfinite, poly.w)
+    θ₀ = prevertices(x₀, poly.s, k)
+    f = SchwarzChristoffel(θ₀, poly.β)
+    sc_fix!(f, θ₀, k, poly.w[k])
+    sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
+    (nothing, f)
+end
+
+function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
+    idxs = ProblemIndices(poly)
+    f = SchwarzChristoffel(prevertices(x₀, poly.s, idxs.kN), poly.β)
+    # solve
+    sol = nlsolve((F, x) -> cost_function!(F, x, f, poly, idxs), x₀; ftol = 1e-10)
+    # apply solution
+    sc_fix!(f, prevertices(sol.zero, poly.s, idxs.kN), idxs.kN, poly.w[idxs.kN])
+    sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
     (sol, f)
 end
+
+# Dispatch on number of free parameters
+sc_parameter_problem(poly::Polygon{N}) where {N} =
+    solve_parameter_problem(free_params(poly), poly)
