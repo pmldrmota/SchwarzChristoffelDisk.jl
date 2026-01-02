@@ -139,6 +139,6 @@ end
 :returns: true if test passed
 """
 function sc_test_ok(f, w)
-    sum(abs2(sc_trafo(f, f.z[k]) - w[k]) for (k, wk) ∈ enumerate(w) if !isinf(wk)) <
+    sum(abs2(sc_trafo(f, f.z[k]) - wk) for (k, wk) ∈ enumerate(w) if !isinf(wk)) <
     length(w)^2 * 1e-6
 end
