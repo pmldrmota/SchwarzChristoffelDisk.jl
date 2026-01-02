@@ -35,8 +35,11 @@ function calc_β_ℓ(w::StaticVector{N}, β_lu::Dict{Int,<:Number}) where {N}
         post = w[mod1(i + 1, N)] - wi
         pre = wi - w[mod1(i - 1, N)]
         β[i] = if isfinite(pre) && isfinite(post)
-            haskey(β_lu, i) && @warn "β_lu[$i] provided but ignored"
-            angle(pre' * post) / π
+            α = angle(pre' * post) / π
+            if haskey(β_lu, i) && !isapprox(β_lu[i], α; rtol=1e-4)
+                @warn "β_lu[$i]=$(β_lu[i]) inconsistent with α=$α; using α"
+            end
+            α
         elseif haskey(β_lu, i)
             β_lu[i]
         else
