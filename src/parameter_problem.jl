@@ -26,12 +26,18 @@ end
 
 # dispatch free parameters based on typed symmetry
 free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
-free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = @MVector zeros(N ÷ R)
+cyclic_free_params(::Val{1}) = @MVector zeros(0)
+cyclic_free_params(::Val{2}) = @MVector zeros(1)
+cyclic_free_params(::Val{V}) where {V} = @MVector zeros(V)
+free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = cyclic_free_params(Val(N ÷ R))
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
 prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
     MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
+# Special case: cyclic symmetry with 2 vertices in base always gives [A,-A,A,-A...]
+prevertex_params(v::MVector{1}, ::CyclicSymmetry{R}) where {R} =
+    MVector{2R}(ntuple(i -> iseven(i) ? v[1] : -v[1], 2R))
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,0}) where {R,V} =
     prevertex_params(MVector{2V}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,1}) where {R,V} =
@@ -97,10 +103,10 @@ function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
     end
 end
 
-function solve_parameter_problem(x₀::StaticVector{0}, poly)
+function solve_parameter_problem(::StaticVector{0}, poly::Polygon{N}) where {N}
     # trivial case does not require NLsolve
     k = findfirst(isfinite, poly.w)
-    θ₀ = prevertices(x₀, poly.s, k)
+    θ₀ = y_to_θ(zeros(N - 1))
     f = SchwarzChristoffel(θ₀, poly.β)
     sc_fix!(f, θ₀, k, poly.w[k])
     sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
