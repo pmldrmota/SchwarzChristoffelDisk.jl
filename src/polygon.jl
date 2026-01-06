@@ -193,7 +193,6 @@ num_independent_vertices(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
 """First independent vertex
 
 For CyclicSymmetry, we need to have one connection between the symmetric pattens.
-todo: get classify_symmetry to output also the orientation
 
 For P=0 we search for the finite vertices whose edge is divided by the axis.
 pattern: lr

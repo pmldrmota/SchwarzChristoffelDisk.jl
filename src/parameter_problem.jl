@@ -33,6 +33,9 @@ free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = cyclic_free_params(Val
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
+# For cyclic symmetry, it is important that the cost function connects vertices
+# across the base, where the base is implicitly defined in this prevertex_params
+# as vertices 1:R (to naturally work with DihedralSymmetry too).
 prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
     MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
 # Special case: cyclic symmetry with 2 vertices in base always gives [A,-A,A,-A...]
