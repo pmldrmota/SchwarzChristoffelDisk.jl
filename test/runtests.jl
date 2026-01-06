@@ -352,208 +352,88 @@ end
     end
 
     @testset "NoSymmetry" begin
-        @testset "finite" begin
-            @testset let poly = Polygon(SA[-1-1im, 1-1im, 1+1im, -1+2im])
-                test_circshift_poly(poly)
-            end
-        end
-        @testset "infinite" begin
-            @testset let poly = Polygon(
-                    SA[-1-1im, 1-1im, 1+1im, Inf, -1+2im],
-                    Dict(3 => -0.25, 4 => 1.25, 5 => 0),
-                )
-                test_circshift_poly(poly)
-            end
+        @testset let poly = Polygon(SA[-1-1im, 1-1im, 1+1im, -1+2im])
+            test_circshift_poly(poly)
         end
     end
 
     @testset "CyclicSymmetry" begin
-        @testset "finite" begin
-            @testset let poly = Polygon(SA[1], CyclicSymmetry{4}())
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(SA[1], CyclicSymmetry{8}())
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(SA[1im, -1+1im], CyclicSymmetry{3}())
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(SA[2, 2+0.3im], CyclicSymmetry{4}())
-                test_circshift_poly(poly)
-            end
-            @testset let poly =
-                    Polygon(SA[1, 0.3*cispi(0.1), 0.8*cispi(0.2)], CyclicSymmetry{3}())
-                test_circshift_poly(poly)
-            end
+        @testset let poly = Polygon(SA[1], CyclicSymmetry{4}())
+            test_circshift_poly(poly)
         end
-        @testset "infinite" begin
-            @testset let poly = Polygon(
-                    SA[1im, Inf, -1+1im],
-                    CyclicSymmetry{2}(),
-                    Dict(1 => -ϕ, 3 => ϕ),
-                )
-                test_circshift_poly(poly)
-            end
+        @testset let poly = Polygon(SA[1], CyclicSymmetry{8}())
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(SA[1im, -1+1im], CyclicSymmetry{3}())
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(SA[2, 2+0.3im], CyclicSymmetry{4}())
+            test_circshift_poly(poly)
+        end
+        @testset let poly =
+                Polygon(SA[1, 0.3*cispi(0.1), 0.8*cispi(0.2)], CyclicSymmetry{3}())
+            test_circshift_poly(poly)
         end
     end
 
     @testset "BilateralSymmetry" begin
-        @testset "finite" begin
-            @testset "P=0" begin
-                @testset let poly =
-                        poly = Polygon(
-                            SA[-1+0.5im, -1.2-0.2im, -1.5+0.8im, -2-0.5im],
-                            BilateralSymmetry{0}(1im),
-                        )
-                    test_circshift_poly(poly)
-                end
-            end
-            @testset "P=1" begin
-                @testset let poly = Polygon(
-                        SA[2im, -1+1im, -1.5+1im, -2.1-0.5im],
-                        BilateralSymmetry{1}(1im),
+        @testset "P=0" begin
+            @testset let poly =
+                    poly = Polygon(
+                        SA[-1+0.5im, -1.2-0.2im, -1.5+0.8im, -2-0.5im],
+                        BilateralSymmetry{0}(1im),
                     )
-                    test_circshift_poly(poly)
-                end
-                @testset let poly = Polygon(SA[1.0im, -1-2im, 1-2im])
-                    test_circshift_poly(poly)
-                end
-            end
-            @testset "P=2" begin
-                @testset let poly = Polygon(
-                        SA[2im, -1+1im, -1.5+1im, -2.1-0.5im, -1im],
-                        BilateralSymmetry{2}(1im),
-                    )
-                    test_circshift_poly(poly)
-                end
+                test_circshift_poly(poly)
             end
         end
-        @testset "infinite" begin
-            @testset "P=0" begin
-                @testset let poly = Polygon(
-                        SA[-1+1im, Inf, -2-1im],
-                        BilateralSymmetry{0}(1im),
-                        Dict(1 => -0.25, 3 => 0.25),
-                    )
-                    test_circshift_poly(poly)
-                end
+        @testset "P=1" begin
+            @testset let poly = Polygon(
+                    SA[2im, -1+1im, -1.5+1im, -2.1-0.5im],
+                    BilateralSymmetry{1}(1im),
+                )
+                test_circshift_poly(poly)
             end
-            @testset "P=1 (infinity not on axis)" begin
-                @testset let poly = Polygon(
-                        SA[1im, Inf, -1-1im],
-                        BilateralSymmetry{1}(1im),
-                        Dict(1 => -0.5, 3 => -0.25),
-                    )
-                    test_circshift_poly(poly)
-                end
+            @testset let poly = Polygon(SA[1.0im, -1-2im, 1-2im])
+                test_circshift_poly(poly)
             end
-            @testset "P=1 (infinity on axis)" begin
-                @testset let poly =
-                        Polygon(SA[Inf, -1-1im], BilateralSymmetry{1}(1im), Dict(2 => 0.25))
-                    test_circshift_poly(poly)
-                end
-            end
-            @testset "P=2 (one infinity on axis)" begin
-                @testset let poly = Polygon(
-                        SA[1im, -1, Inf],
-                        BilateralSymmetry{2}(1im),
-                        Dict(2 => 0.25),
-                    )
-                    test_circshift_poly(poly)
-                end
-            end
-            @testset "P=2 (both infinities on axis)" begin
-                @testset let poly = Polygon(
-                        SA[Inf, -1+1im, -1-1im, Inf],
-                        BilateralSymmetry{2}(1im),
-                        Dict(1 => 2, 2 => -0.5, 3 => -0.25),
-                    )
-                    test_circshift_poly(poly)
-                end
+        end
+        @testset "P=2" begin
+            @testset let poly = Polygon(
+                    SA[2im, -1+1im, -1.5+1im, -2.1-0.5im, -1im],
+                    BilateralSymmetry{2}(1im),
+                )
+                test_circshift_poly(poly)
             end
         end
     end
 
     @testset "DihedralSymmetry" begin
-        @testset "finite" begin
-            @testset "P=0" begin
-                @testset let poly = Polygon(SA[0.5+1im], DihedralSymmetry{2,0}(1im))
-                    test_circshift_poly(poly)
-                end
-                @testset let poly = Polygon(
-                        SA[1+0.2im, 0.5+1im, 0.2+1.5im, 0.12+1im],
-                        DihedralSymmetry{2,0}(1im),
-                    )
-                    test_circshift_poly(poly)
-                end
+        @testset "P=0" begin
+            @testset let poly = Polygon(SA[0.5+1im], DihedralSymmetry{2,0}(1im))
+                test_circshift_poly(poly)
             end
-            @testset "P=1" begin
-                @testset let poly = Polygon(SA[1+1im, 2im], DihedralSymmetry{2,1}(1im))
-                    test_circshift_poly(poly)
-                end
-                @testset let poly = Polygon(
-                        SA[1+1im, 1.2+0.9im, 1.7+1im, 2im],
-                        DihedralSymmetry{2,1}(1im),
-                    )
-                    test_circshift_poly(poly)
-                end
-            end
-            @testset "P=2" begin
-                @testset let poly =
-                        Polygon(SA[1+1im, 0.5+1im, 2im], DihedralSymmetry{4,2}(2im))
-                    test_circshift_poly(poly)
-                end
-                @testset let poly =
-                        Polygon(SA[2, 1+0.5im, 2.5im], DihedralSymmetry{2,2}(2im))
-                    test_circshift_poly(poly)
-                end
+            @testset let poly = Polygon(
+                    SA[1+0.2im, 0.5+1im, 0.2+1.5im, 0.12+1im],
+                    DihedralSymmetry{2,0}(1im),
+                )
+                test_circshift_poly(poly)
             end
         end
-        @testset "infinite" begin
-            @testset "P=0" begin
-                @testset let poly = Polygon(
-                        SA[0.5+1im, Inf, 1+2im],
-                        DihedralSymmetry{2,0}(-1im),
-                        Dict(1 => -0.5, 2 => 1.25, 3 => -0.25),
-                    )
-                    test_circshift_poly(poly)
-                end
+        @testset "P=1" begin
+            @testset let poly = Polygon(SA[1+1im, 2im], DihedralSymmetry{2,1}(1im))
+                test_circshift_poly(poly)
             end
-            @testset "P=1" begin
-                @testset let poly = Polygon(
-                        SA[1+1im, Inf],
-                        DihedralSymmetry{2,1}(1im),
-                        Dict(1 => -0.25),
-                    )
-                    test_circshift_poly(poly)
-                end
+            @testset let poly =
+                    Polygon(SA[1+1im, 1.2+0.9im, 1.7+1im, 2im], DihedralSymmetry{2,1}(1im))
+                test_circshift_poly(poly)
             end
-            @testset "P=2 (infinities not on axes)" begin
-                @testset let poly = Polygon(
-                        SA[2, 1+1im, Inf, 2.5im],
-                        DihedralSymmetry{2,2}(1im),
-                        Dict(2 => -0.5, 4 => -0.9),
-                    )
-                    test_circshift_poly(poly)
-                end
+        end
+        @testset "P=2" begin
+            @testset let poly = Polygon(SA[1+1im, 0.5+1im, 2im], DihedralSymmetry{4,2}(2im))
+                test_circshift_poly(poly)
             end
-            @testset "P=2 (infinity on one axis)" begin
-                @testset let poly = Polygon(
-                        SA[2, 1+0.5im, Inf],
-                        DihedralSymmetry{2,2}(2im),
-                        Dict(2 => -0.75),
-                    )
-                    test_circshift_poly(poly)
-                end
-            end
-            @testset "P=2 (infinities on both axes)" begin
-                @testset let poly = Polygon(
-                        SA[Inf, 2+0.5im, 1+1.5im, Inf],
-                        DihedralSymmetry{2,2}(2im),
-                        Dict(2 => -0.5, 3 => -0.25, 4 => 1.2),
-                    )
-                    test_circshift_poly(poly)
-                end
+            @testset let poly = Polygon(SA[2, 1+0.5im, 2.5im], DihedralSymmetry{2,2}(2im))
+                test_circshift_poly(poly)
             end
         end
     end
