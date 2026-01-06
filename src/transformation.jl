@@ -3,7 +3,7 @@ export SchwarzChristoffel, sc_trafo, sc_segment, sc_test_ok
 using StaticArrays, FastGaussQuadrature
 
 #: Number of points for Gauss quadrature
-const NQUAD = 8
+const NQUAD = 7
 
 mutable struct SchwarzChristoffel{Z,B,C,QC}
     z::Z
