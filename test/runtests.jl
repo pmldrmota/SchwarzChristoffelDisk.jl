@@ -92,7 +92,7 @@ end
                 @test all(poly.ℓ .== [1, κ, 1, κ])
                 @test poly.s isa CyclicSymmetry{2}
                 @test poly.s == classify_symmetry(poly)
-                @test first_independent_vertex(poly) == 1
+                @test first_independent_vertex(poly) == 2
             end
         end
         @testset "infinite" begin
@@ -105,7 +105,7 @@ end
                 @test all(poly.ℓ .== [Inf, Inf, κ, Inf, Inf, κ])
                 @test poly.s isa CyclicSymmetry{2}
                 @test poly.s == classify_symmetry(poly)
-                @test first_independent_vertex(poly) == 1
+                @test first_independent_vertex(poly) == 2
             end
         end
     end
@@ -127,7 +127,7 @@ end
                     @test all(poly.ℓ .== [sqrt(2), 2, sqrt(2)])
                     @test poly.s isa BilateralSymmetry{1}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [1, 3]
+                    @test first_independent_vertex(poly) ∈ [2, 4]
                 end
             end
             @testset "P=2" begin
@@ -136,7 +136,7 @@ end
                     @test all(poly.ℓ .== [sqrt(2), κ, κ, sqrt(2)])
                     @test poly.s isa BilateralSymmetry{2}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [1, 3]
+                    @test first_independent_vertex(poly) ∈ [2, 4]
                 end
             end
         end
@@ -225,7 +225,7 @@ end
                     @test all(poly.ℓ .== [l; l])
                     @test poly.s isa DihedralSymmetry{2,1}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [1, 2, 4, 5]
+                    @test first_independent_vertex(poly) ∈ [2, 3, 5, 6]
                 end
             end
             @testset "P=2" begin
@@ -237,7 +237,7 @@ end
                     @test all(poly.ℓ .== [l; l; l; l] / 2)
                     @test poly.s isa DihedralSymmetry{4,2}
                     @test poly.s == classify_symmetry(poly)
-                    @test isodd(first_independent_vertex(poly))
+                    @test iseven(first_independent_vertex(poly))
                 end
                 @testset let poly =
                         Polygon(SA[2, 1+0.5im, 2.5im], DihedralSymmetry{2,2}(2im))
@@ -247,7 +247,7 @@ end
                     @test all(poly.ℓ .== [l; l])
                     @test poly.s isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
-                    @test isodd(first_independent_vertex(poly))
+                    @test iseven(first_independent_vertex(poly))
                 end
             end
         end
