@@ -90,7 +90,7 @@ struct ProblemIndices{X,L}
                 for _k_seg ∈ 2:num_segments
                     i0 = k_fix[end]
                     i1 = i0 + findfirst(i -> isinf(poly.w[cidx(i0 + i)]), 1:N)
-                    push!(k_fix, i1 + 1)
+                    push!(k_fix, cidx(i1 + 1))
                     num_missing -= 2
                 end
                 k_len = Int[]
