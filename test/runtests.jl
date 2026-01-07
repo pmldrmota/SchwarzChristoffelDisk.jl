@@ -440,13 +440,27 @@ end
 
     @testset "Infinite polygons" begin
         @testset "One infinity" begin
-            @testset let poly = Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25))
+            @testset let poly =
+                    Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25))
                 test_circshift_poly(poly)
             end
-            @testset let poly = Polygon(SA[1im, -1, Inf], BilateralSymmetry{2}(1im), Dict(2 => 0.25))
+            @testset let poly =
+                    Polygon(SA[1im, -1, Inf], BilateralSymmetry{2}(1im), Dict(2 => 0.25))
                 test_circshift_poly(poly)
             end
-            @testset let poly = Polygon(SA[1im, -1.5+2im, -2, Inf], BilateralSymmetry{2}(1im), Dict(3 => -0.25))
+            @testset let poly = Polygon(
+                    SA[1im, -1.5+2im, -2, Inf],
+                    BilateralSymmetry{2}(1im),
+                    Dict(3 => -0.25),
+                )
+                test_circshift_poly(poly)
+            end
+        end
+        @testset "Two infinities (NoSymmetry)" begin
+            @testset let poly = Polygon(
+                    SA[1.0im, -1+1im, -Inf, -1im, 1-1im, Inf],
+                    Dict(1 => -0.2, 2 => -0.2, 4 => -0.41, 5 => -0.4, 6 => 1.6),
+                )
                 test_circshift_poly(poly)
             end
         end

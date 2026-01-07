@@ -70,20 +70,43 @@ struct ProblemIndices{X,L}
         num_infs = count(isinf, poly.w)
         cidx(i) = mod1(i, N)
 
+        finite_ℓ =
+            cidx.(idx₁ - 1 .+ findall(i -> isfinite(poly.ℓ[cidx(i)]), idx₁:(idx₁+N-1)))
+        kN = popfirst!(finite_ℓ)
         if num_infs < 2
-            finite_ℓ =
-                cidx.(idx₁ - 1 .+ findall(i -> isfinite(poly.ℓ[cidx(i)]), idx₁:(idx₁+N-1)))
-            kN = popfirst!(finite_ℓ)
             if num_free == 1
                 return new{0,1}(kN, SVector{0}(), SVector{1}(kN))
             else
-                k_fix = SVector{1}(cidx(kN + 1))
+                k_fix = SVector{1}(cidx(kN+1))
                 num_ℓ = num_free - 2
                 k_len = SVector{num_ℓ}(finite_ℓ[1:num_ℓ])
                 return new{1,num_ℓ}(kN, k_fix, k_len)
             end
         else
-            throw(ErrorException("ProblemIndices not implemented for infinities"))
+            if poly.s isa NoSymmetry
+                num_missing = num_free - 2
+                k_fix = Int[cidx(kN+1)]
+                num_segments = count(isinf, poly.w)
+                for _k_seg ∈ 2:num_segments
+                    i0 = k_fix[end]
+                    i1 = i0 + findfirst(i -> isinf(poly.w[cidx(i0 + i)]), 1:N)
+                    push!(k_fix, i1 + 1)
+                    num_missing -= 2
+                end
+                k_len = Int[]
+                current_idx = k_fix[begin]
+                while num_missing > 0
+                    if isfinite(poly.ℓ[current_idx])
+                        push!(k_len, current_idx)
+                        num_missing -= 1
+                        current_idx += 1
+                    else
+                        current_idx += 2
+                    end
+                end
+                return new{length(k_fix),length(k_len)}(kN, k_fix, k_len)
+            end
+            throw(ErrorException("ProblemIndices not implemented for $(typeof(poly.s))"))
         end
     end
 end
