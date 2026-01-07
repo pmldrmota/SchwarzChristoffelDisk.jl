@@ -68,15 +68,18 @@ struct ProblemIndices{X,L}
         idx₁ = first_independent_vertex(poly)
         num_free = length(free_params(poly))
         num_infs = count(isinf, poly.w)
+        cidx(i) = mod1(i, N)
 
-        if num_infs == 0
-            kN = idx₁
+        if num_infs < 2
+            finite_ℓ =
+                cidx.(idx₁ - 1 .+ findall(i -> isfinite(poly.ℓ[cidx(i)]), idx₁:(idx₁+N-1)))
+            kN = popfirst!(finite_ℓ)
             if num_free == 1
                 return new{0,1}(kN, SVector{0}(), SVector{1}(kN))
             else
-                k_fix = SVector{1}(mod1(kN + 1, N))
+                k_fix = SVector{1}(cidx(kN + 1))
                 num_ℓ = num_free - 2
-                k_len = SVector{num_ℓ}(mod1(kN + i, N) for i ∈ 1:num_ℓ)
+                k_len = SVector{num_ℓ}(finite_ℓ[1:num_ℓ])
                 return new{1,num_ℓ}(kN, k_fix, k_len)
             end
         else
