@@ -165,7 +165,7 @@ end
                     @test all(poly.ℓ .== [Inf, Inf, 2, Inf, Inf])
                     @test poly.s isa BilateralSymmetry{1}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) == 2
+                    @test first_independent_vertex(poly) == 1
                 end
             end
             @testset "P=1 (infinity on axis)" begin
@@ -175,7 +175,7 @@ end
                     @test all(poly.ℓ .== [Inf, 2, Inf])
                     @test poly.s isa BilateralSymmetry{1}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) == 2
+                    @test first_independent_vertex(poly) == 1
                 end
             end
             @testset "P=2 (one infinity on axis)" begin
@@ -188,7 +188,7 @@ end
                     @test all(poly.ℓ .== [sqrt(2), Inf, Inf, sqrt(2)])
                     @test poly.s isa BilateralSymmetry{2}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [2, 4]
+                    @test first_independent_vertex(poly) ∈ [1, 3]
                 end
             end
             @testset "P=2 (both infinities on axis)" begin
@@ -201,7 +201,7 @@ end
                     @test all(poly.ℓ .== [Inf, 2, Inf, Inf, 2, Inf])
                     @test poly.s isa BilateralSymmetry{2}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [2, 5]
+                    @test first_independent_vertex(poly) ∈ [1, 4]
                 end
             end
         end
@@ -277,7 +277,7 @@ end
                     @test all(poly.ℓ .== [Inf, Inf, 2, Inf, Inf, 2])
                     @test poly.s isa DihedralSymmetry{2,1}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [2, 3, 5, 6]
+                    @test first_independent_vertex(poly) ∈ [1, 2, 4, 5]
                 end
             end
             @testset "P=2 (infinities not on axes)" begin
@@ -292,7 +292,7 @@ end
                     @test all(poly.ℓ .== [l; l])
                     @test poly.s isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [2, 5, 8, 11]
+                    @test first_independent_vertex(poly) ∈ [1, 4, 7, 10]
                 end
             end
             @testset "P=2 (one infinity on axis)" begin
@@ -307,7 +307,7 @@ end
                     @test all(poly.ℓ .== [l; l])
                     @test poly.s isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
-                    @test iseven(first_independent_vertex(poly))
+                    @test isodd(first_independent_vertex(poly))
                 end
             end
             @testset "P=2 (both infinities on axes)" begin
@@ -322,7 +322,7 @@ end
                     @test all(poly.ℓ .== [l; l])
                     @test poly.s isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
-                    @test first_independent_vertex(poly) ∈ [2, 5, 8, 11]
+                    @test first_independent_vertex(poly) ∈ [1, 4, 7, 10]
                 end
             end
         end
