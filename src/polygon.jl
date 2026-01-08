@@ -18,7 +18,7 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
         double_∞ = findfirst(i -> isinf(w[i]) && isinf(w[mod1(i + 1, N)]), 1:N)
         isnothing(double_∞) || throw(ArgumentError("found consecutive infinities"))
         ∑β = sum(β)
-        isapprox(∑β, 2; rtol=1e-5) || throw(ArgumentError("wrong angles (∑β=$∑β)"))
+        isapprox(∑β, 2; rtol = 1e-5) || throw(ArgumentError("wrong angles (∑β=$∑β)"))
         new{N,S,eltype(w),eltype(β),eltype(ℓ)}(SVector(w), s, SVector(β), SVector(ℓ))
     end
 end

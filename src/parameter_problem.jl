@@ -79,16 +79,17 @@ struct ProblemIndices{X,L}
         idx₁ = cost_start_idx(poly)
         num_free = length(free_params(poly))
         num_infs = count(isinf, poly.w)
+        # cyclic indexing helper
         cidx(i) = mod1(i, N)
-
+        # the indices of all finite segments, starting at idx₁ and wrapping around
         finite_ℓ =
             cidx.(idx₁ - 1 .+ findall(i -> isfinite(poly.ℓ[cidx(i)]), idx₁:(idx₁+N-1)))
         kN = popfirst!(finite_ℓ)
         if num_infs < 2
             if num_free == 1
-                return new{0,1}(kN, SVector{0}(), SVector{1}(kN))
+                return new{0,1}(kN, SVector{0}(), SA[kN])
             else
-                k_fix = SVector{1}(cidx(kN+1))
+                k_fix = SA[cidx(kN+1)]
                 num_ℓ = num_free - 2
                 k_len = SVector{num_ℓ}(finite_ℓ[1:num_ℓ])
                 return new{1,num_ℓ}(kN, k_fix, k_len)
@@ -107,6 +108,7 @@ struct ProblemIndices{X,L}
                 k_len = Int[]
                 current_idx = k_fix[begin]
                 while num_missing > 0
+                    current_idx = cidx(current_idx)
                     if isfinite(poly.ℓ[current_idx])
                         push!(k_len, current_idx)
                         num_missing -= 1
