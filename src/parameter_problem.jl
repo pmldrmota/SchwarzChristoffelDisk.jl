@@ -33,13 +33,13 @@ free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = cyclic_free_params(Val
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
-# We define the start index for the cost function
-cost_start_idx(poly::Polygon) = 1
+# We define the start index for the prevetex params generation
+prevertex_start_idx(poly::Polygon) = 1
 # For cyclic symmetry, it is important that the cost function connects vertices
 # across the base, where the base is implicitly defined in this prevertex_params
 # as vertices 1:R (to naturally work with DihedralSymmetry too). Therefore, we
 # start the cost function at 2.
-cost_start_idx(poly::Polygon{<:Any,<:CyclicSymmetry}) = 2
+prevertex_start_idx(poly::Polygon{<:Any,<:CyclicSymmetry}) = 2
 prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
     MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
 # Special case: cyclic symmetry with 2 vertices in base always gives [A,-A,A,-A...]
@@ -49,9 +49,9 @@ prevertex_params(v::MVector{1}, ::CyclicSymmetry{R}) where {R} =
 # For P=1 and P=2 we use the index of the first one after the axis itself.
 # The vertex on the axis is not really independent because can be found with
 # the left-turn angle information.
-cost_start_idx(poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) =
+prevertex_start_idx(poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) =
     first_independent_vertex(poly)
-cost_start_idx(poly::Polygon{<:Any,<:DihedralSymmetry}) = first_independent_vertex(poly) + 1
+prevertex_start_idx(poly::Polygon{<:Any,<:DihedralSymmetry}) = first_independent_vertex(poly) + 1
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,0}) where {R,V} =
     prevertex_params(MVector{2V}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,1}) where {R,V} =
@@ -76,7 +76,7 @@ struct ProblemIndices{X,L}
     k_len::SVector{L,Int}
 
     function ProblemIndices(poly::Polygon{N}) where {N}
-        idx₁ = cost_start_idx(poly)
+        idx₁ = prevertex_start_idx(poly)
         num_free = length(free_params(poly))
         num_infs = count(isinf, poly.w)
         # cyclic indexing helper
