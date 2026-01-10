@@ -5,14 +5,15 @@ import Base
 
 abstract type AbstractSymmetry end
 
-"""No symmetry"""
-struct NoSymmetry <: AbstractSymmetry end
-
 """Rotational symetry
 
 Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
 """
 struct CyclicSymmetry{R} <: AbstractSymmetry end
+
+"""No symmetry (alias for CyclicSymmetry with `R=1`)
+"""
+const NoSymmetry = CyclicSymmetry{1}
 
 """Regular polygon symmetry
 

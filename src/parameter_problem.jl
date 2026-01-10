@@ -105,37 +105,6 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     end
 end
 
-function problem_indices_disjoint(poly::Polygon{N,NoSymmetry}) where {N}
-    idx₁ = prevertex_start_idx(poly)
-    num_free = length(free_params(poly))
-
-    # the indices of all finite segments, starting at idx₁ and wrapping around
-    finite_ℓ = findall_circ(isfinite, poly.ℓ, idx₁)
-    kN = popfirst!(finite_ℓ)
-
-    num_missing = num_free - 2
-    k_fix = Int[mod1(kN+1, N)]
-    num_segments = count(isinf, poly.w)
-    for _k_seg ∈ 2:num_segments
-        i1 = findnext_circ(isinf, poly.w, k_fix[end] + 1)
-        push!(k_fix, mod1(i1+1, N))
-        num_missing -= 2
-    end
-    k_len = Int[]
-    current_idx = k_fix[begin]
-    while num_missing > 0
-        current_idx = mod1(current_idx, N)
-        if isfinite(poly.ℓ[current_idx])
-            push!(k_len, current_idx)
-            num_missing -= 1
-            current_idx += 1
-        else
-            current_idx += 2
-        end
-    end
-    ProblemIndices{num_segments,length(k_len)}(kN, k_fix, k_len)
-end
-
 function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     idx₁ = prevertex_start_idx(poly)
     finite_ℓ = findall_circ(isfinite, poly.ℓ, idx₁)
