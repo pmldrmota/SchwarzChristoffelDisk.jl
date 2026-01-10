@@ -85,13 +85,13 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     num_infs = count(isinf, poly.w)
     if num_infs < 2
         num_free = length(free_params(poly))
+        idx₁ = prevertex_start_idx(poly)
         if num_free == 1
-            # pick any finite edge
-            kN = findfirst(isfinite, poly.ℓ)
+            # pick the first finite edge in the symmetry base
+            kN = findnext_circ(isfinite, poly.ℓ, idx₁)
             return ProblemIndices{0,1}(kN, SVector{0}(), SA[kN])
         else
             # pick the first two connected vertices in the symmetry base and enough finite edges
-            idx₁ = prevertex_start_idx(poly)
             finite_ℓ = findall_circ(isfinite, poly.ℓ, idx₁)
             kN = popfirst!(finite_ℓ)
             k_fix = SA[mod1(kN+1, N)]
