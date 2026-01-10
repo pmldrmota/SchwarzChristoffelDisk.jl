@@ -185,10 +185,10 @@ function Polygon(
     Polygon(w, symmetry, β, ℓ)
 end
 
-num_independent_vertices(::Polygon{N,NoSymmetry}) where {N} = N
-num_independent_vertices(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = N ÷ R
-num_independent_vertices(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
-    P + (N ÷ R - P) ÷ 2
+num_independent_vertices(N, ::NoSymmetry) = N
+num_independent_vertices(N, ::CyclicSymmetry{R}) where {R} = N ÷ R
+num_independent_vertices(N, ::DihedralSymmetry{R,P}) where {R,P} = P + (N ÷ R - P) ÷ 2
+num_independent_vertices(poly::Polygon{N}) where {N} = num_independent_vertices(N, poly.s)
 
 """First independent vertex
 
