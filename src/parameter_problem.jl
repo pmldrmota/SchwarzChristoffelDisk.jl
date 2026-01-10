@@ -74,54 +74,66 @@ struct ProblemIndices{X,L}
     kN::Int
     k_fix::SVector{X,Int}
     k_len::SVector{L,Int}
+end
 
-    function ProblemIndices(poly::Polygon{N}) where {N}
-        idx₁ = prevertex_start_idx(poly)
+findnext_circ(predicate::Function, A::StaticVector{N}, start::Integer) where {N} =
+    mod1(start - 1 + findfirst(i -> predicate(A[mod1(start - 1 + i, N)]), 1:N), N)
+findall_circ(predicate::Function, A::StaticVector{N}, start::Integer) where {N} =
+    mod1.(start - 1 .+ findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:N), N)
+
+function ProblemIndices(poly::Polygon{N}) where {N}
+    num_infs = count(isinf, poly.w)
+    if num_infs < 2
         num_free = length(free_params(poly))
-        num_infs = count(isinf, poly.w)
-        # cyclic indexing helper
-        cidx(i) = mod1(i, N)
-        # the indices of all finite segments, starting at idx₁ and wrapping around
-        finite_ℓ =
-            cidx.(idx₁ - 1 .+ findall(i -> isfinite(poly.ℓ[cidx(i)]), idx₁:(idx₁+N-1)))
-        kN = popfirst!(finite_ℓ)
-        if num_infs < 2
-            if num_free == 1
-                return new{0,1}(kN, SVector{0}(), SA[kN])
-            else
-                k_fix = SA[cidx(kN+1)]
-                num_ℓ = num_free - 2
-                k_len = SVector{num_ℓ}(finite_ℓ[1:num_ℓ])
-                return new{1,num_ℓ}(kN, k_fix, k_len)
-            end
+        if num_free == 1
+            # pick any finite edge
+            kN = findfirst(isfinite, poly.ℓ)
+            return ProblemIndices{0,1}(kN, SVector{0}(), SA[kN])
         else
-            if poly.s isa NoSymmetry
-                num_missing = num_free - 2
-                k_fix = Int[cidx(kN+1)]
-                num_segments = count(isinf, poly.w)
-                for _k_seg ∈ 2:num_segments
-                    i0 = k_fix[end]
-                    i1 = i0 + findfirst(i -> isinf(poly.w[cidx(i0 + i)]), 1:N)
-                    push!(k_fix, cidx(i1 + 1))
-                    num_missing -= 2
-                end
-                k_len = Int[]
-                current_idx = k_fix[begin]
-                while num_missing > 0
-                    current_idx = cidx(current_idx)
-                    if isfinite(poly.ℓ[current_idx])
-                        push!(k_len, current_idx)
-                        num_missing -= 1
-                        current_idx += 1
-                    else
-                        current_idx += 2
-                    end
-                end
-                return new{length(k_fix),length(k_len)}(kN, k_fix, k_len)
-            end
-            throw(ErrorException("ProblemIndices not implemented for $(typeof(poly.s))"))
+            # pick the first two connected vertices in the symmetry base and enough finite edges
+            idx₁ = prevertex_start_idx(poly)
+            finite_ℓ = findall_circ(isfinite, poly.ℓ, idx₁)
+            kN = popfirst!(finite_ℓ)
+            k_fix = SA[mod1(kN+1, N)]
+            num_ℓ = num_free - 2
+            k_len = SVector{num_ℓ}(finite_ℓ[1:num_ℓ])
+            return ProblemIndices{1,num_ℓ}(kN, k_fix, k_len)
+        end
+    else
+        # dispatch on symmetry if there are disjoint segments in the polygon
+        return problem_indices_disjoint(poly)
+    end
+end
+
+function problem_indices_disjoint(poly::Polygon{N,NoSymmetry}) where {N}
+    idx₁ = prevertex_start_idx(poly)
+    num_free = length(free_params(poly))
+
+    # the indices of all finite segments, starting at idx₁ and wrapping around
+    finite_ℓ = findall_circ(isfinite, poly.ℓ, idx₁)
+    kN = popfirst!(finite_ℓ)
+
+    num_missing = num_free - 2
+    k_fix = Int[mod1(kN+1, N)]
+    num_segments = count(isinf, poly.w)
+    for _k_seg ∈ 2:num_segments
+        i1 = findnext_circ(isinf, poly.w, k_fix[end] + 1)
+        push!(k_fix, mod1(i1+1, N))
+        num_missing -= 2
+    end
+    k_len = Int[]
+    current_idx = k_fix[begin]
+    while num_missing > 0
+        current_idx = mod1(current_idx, N)
+        if isfinite(poly.ℓ[current_idx])
+            push!(k_len, current_idx)
+            num_missing -= 1
+            current_idx += 1
+        else
+            current_idx += 2
         end
     end
+    ProblemIndices{length(k_fix),length(k_len)}(kN, k_fix, k_len)
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
