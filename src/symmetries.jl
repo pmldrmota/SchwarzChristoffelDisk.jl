@@ -20,7 +20,7 @@ const NoSymmetry = CyclicSymmetry{1}
 Type parameter `{R}` encodes the number of steps making up a full 2π rotation.
 Type parameter `{P}` encodes the number of polygon nodes on the symmetry axis.
 The field `axis` stores one axis of symmetry. The other ones can be constructed
-by rotation.
+by rotation (see `symmetry_axes`).
 If `P > 0`, then `axis` is assumed to coincide with a vertex.
 """
 struct DihedralSymmetry{R,P,T<:Complex} <: AbstractSymmetry
@@ -52,6 +52,11 @@ is_on(axis, point) = which_side(axis, point) |> iszero
 "Equality check taking into account symmetric transformations"
 Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
     any(i -> is_on(a.axis, cispi(2i // R) * b.axis), 1:R)
+
+"List of all symmetry axes for a DihedralSymmetry"
+symmetry_axes(sym::DihedralSymmetry{R}) where {R} =
+    SVector{R}(cispi(k // R) * sym.axis for k ∈ 0:(R-1))
+
 
 """Classify the symmetry group of a polygon
 

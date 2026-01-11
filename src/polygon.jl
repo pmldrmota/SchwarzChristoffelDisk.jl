@@ -186,7 +186,7 @@ For P=1 and P=2 we search for patterns
 """
 first_independent_vertex(::Polygon) = 1
 function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
-    axes = [cispi(k // R) * poly.s.axis for k ∈ 0:(R-1)]
+    axes = symmetry_axes(poly.s)
     findfirst(
         i -> begin
             w = poly.w[i]
@@ -202,7 +202,7 @@ function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R}}) where 
     )
 end
 function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R,0}}) where {N,R}
-    axes = [cispi(k // R) * poly.s.axis for k ∈ 0:(R-1)]
+    axes = symmetry_axes(poly.s)
     findfirst(i -> begin
         w₋ = poly.w[mod1(i - 1, N)]
         w = poly.w[i]
