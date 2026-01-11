@@ -185,29 +185,31 @@ For P=1 and P=2 we search for patterns
     l∞.∞r
 """
 first_independent_vertex(::Polygon) = 1
-first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry}) where {N} = findfirst(
-    i -> begin
-        w = poly.w[i]
-        if isinf(w)
-            w₋ = poly.w[mod1(i - 1, N)]
-            w₊ = poly.w[mod1(i + 1, N)]
-            which_side(poly.s.axis, w₋) * which_side(poly.s.axis, w₊) < 0
-        else
-            is_on(poly.s.axis, w)
-        end
-    end,
-    1:N,
-)
-first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{<:Any,0}}) where {N} =
+function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
+    axes = [cispi(k // R) * poly.s.axis for k ∈ 0:(R-1)]
     findfirst(
         i -> begin
-            w₋ = poly.w[mod1(i - 1, N)]
             w = poly.w[i]
-            (
-                isfinite(w₋) &&
-                isfinite(w) &&
-                which_side(poly.s.axis, w₋) * which_side(poly.s.axis, w) < 0
-            )
+            if isinf(w)
+                w₋ = poly.w[mod1(i - 1, N)]
+                w₊ = poly.w[mod1(i + 1, N)]
+                any(ax -> which_side(ax, w₋) * which_side(ax, w₊) < 0, axes)
+            else
+                any(ax -> is_on(ax, w), axes)
+            end
         end,
         1:N,
     )
+end
+function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R,0}}) where {N,R}
+    axes = [cispi(k // R) * poly.s.axis for k ∈ 0:(R-1)]
+    findfirst(i -> begin
+        w₋ = poly.w[mod1(i - 1, N)]
+        w = poly.w[i]
+        if isinf(w₋) || isinf(w)
+            false
+        else
+            any(ax -> which_side(ax, w₋) * which_side(ax, w) < 0, axes)
+        end
+    end, 1:N)
+end
