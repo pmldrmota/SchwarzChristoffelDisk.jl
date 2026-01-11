@@ -438,77 +438,100 @@ end
         end
     end
 
-    @testset "Infinite polygons" begin
-        @testset "One infinity" begin
-            @testset let poly =
-                    Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25))
-                test_circshift_poly(poly)
-            end
-            @testset let poly =
-                    Polygon(SA[1im, -1, Inf], BilateralSymmetry{2}(1im), Dict(2 => 0.25))
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(
-                    SA[1im, -1.5+2im, -2, Inf],
-                    BilateralSymmetry{2}(1im),
-                    Dict(3 => -0.25),
-                )
-                test_circshift_poly(poly)
-            end
+    @testset "One infinity" begin
+        @testset let poly =
+                Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25))
+            test_circshift_poly(poly)
         end
-        @testset "Two infinities (NoSymmetry)" begin
-            @testset let poly = Polygon(
-                    SA[1.0im, -1+1im, -Inf, -1im, 1-1im, Inf],
-                    Dict(1 => -0.2, 2 => -0.2, 4 => -0.41, 5 => -0.4, 6 => 1.6),
-                )
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(
-                    SA[
-                        1.0im,
-                        -1+1im,
-                        -Inf,
-                        -1im,
-                        0.25-1im,
-                        0.5-1.5im,
-                        0.75-1im,
-                        1-1im,
-                        Inf,
-                    ],
-                    Dict(1 => -0.2, 2 => -0.2, 4 => -0.41, 8 => -0.3, 9 => 1.5),
-                )
-                test_circshift_poly(poly)
-            end
+        @testset let poly =
+                Polygon(SA[1im, -1, Inf], BilateralSymmetry{2}(1im), Dict(2 => 0.25))
+            test_circshift_poly(poly)
         end
-        @testset "More infinities (CyclicSymmetry)" begin
-            @testset let poly = Polygon(
-                    SA[1im, Inf, -1+1im],
-                    CyclicSymmetry{2}(),
-                    Dict(1 => -ϕ, 3 => ϕ),
-                )
-                test_circshift_poly(poly)  # fails with shift=2 due to solver issue
-            end
-            @testset let poly = Polygon(
-                    SA[1-0.5im, 1+0.5im, Inf],
-                    CyclicSymmetry{4}(),
-                    Dict(1 => -0.5, 2 => -0.5),
-                )
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(
-                    SA[1-0.5im, 0.8, 1+0.5im, Inf],
-                    CyclicSymmetry{4}(),
-                    Dict(1 => -0.25, 3 => -0.25),
-                )
-                test_circshift_poly(poly)
-            end
-            @testset let poly = Polygon(
-                    SA[1-0.5im, 0.75-0.25im, 0.75+0.25im, 1+0.5im, Inf],
-                    CyclicSymmetry{4}(),
-                    Dict(1 => -0.25, 4 => -0.25),
-                )
-                test_circshift_poly(poly)  # fails with 3, 8, 13, 18 due to solver issues
-            end
+        @testset let poly = Polygon(
+                SA[1im, -1.5+2im, -2, Inf],
+                BilateralSymmetry{2}(1im),
+                Dict(3 => -0.25),
+            )
+            test_circshift_poly(poly)
+        end
+    end
+
+    @testset "Two infinities (NoSymmetry)" begin
+        @testset let poly = Polygon(
+                SA[1.0im, -1+1im, -Inf, -1im, 1-1im, Inf],
+                Dict(1 => -0.2, 2 => -0.2, 4 => -0.41, 5 => -0.4, 6 => 1.6),
+            )
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(
+                SA[
+                    1.0im,
+                    -1+1im,
+                    -Inf,
+                    -1im,
+                    0.25-1im,
+                    0.5-1.5im,
+                    0.75-1im,
+                    1-1im,
+                    Inf,
+                ],
+                Dict(1 => -0.2, 2 => -0.2, 4 => -0.41, 8 => -0.3, 9 => 1.5),
+            )
+            test_circshift_poly(poly)
+        end
+    end
+
+    @testset "≥2 infinities (CyclicSymmetry)" begin
+        @testset let poly = Polygon(
+                SA[1im, Inf, -1+1im],
+                CyclicSymmetry{2}(),
+                Dict(1 => -ϕ, 3 => ϕ),
+            )
+            test_circshift_poly(poly)  # fails with shift=2 due to solver issue
+        end
+        @testset let poly = Polygon(
+                SA[1-0.5im, 1+0.5im, Inf],
+                CyclicSymmetry{4}(),
+                Dict(1 => -0.5, 2 => -0.5),
+            )
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(
+                SA[1-0.5im, 0.8, 1+0.5im, Inf],
+                CyclicSymmetry{4}(),
+                Dict(1 => -0.25, 3 => -0.25),
+            )
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(
+                SA[1-0.5im, 0.75-0.25im, 0.75+0.25im, 1+0.5im, Inf],
+                CyclicSymmetry{4}(),
+                Dict(1 => -0.25, 4 => -0.25),
+            )
+            test_circshift_poly(poly)  # fails with 3, 8, 13, 18 due to solver issues
+        end
+    end
+    @testset "≥2 infinities (DihedralSymmetry{0})" begin
+        @testset let poly = Polygon(
+                SA[2+1im, Inf, 0.5+2.5im],
+                DihedralSymmetry{2,0}(0.1+1im),
+                Dict(1 => -0.5, 3 => -0.5),
+            )
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(
+                SA[2+0.2im, 1.5+1im, Inf, 0.5+2.5im],
+                DihedralSymmetry{2,0}(1im),
+                Dict(2 => -0.5, 4 => -0.3),
+            )
+            test_circshift_poly(poly)
+        end
+        @testset let poly = Polygon(
+                SA[2+0.2im, 1.5+1im, Inf, 0.5+2.5im, 0.2+2.1im],
+                DihedralSymmetry{2,0}(1im),
+                Dict(2 => -0.5, 4 => 0.1),
+            )
+            test_circshift_poly(poly)
         end
     end
 end
