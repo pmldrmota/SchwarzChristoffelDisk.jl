@@ -90,6 +90,7 @@ function make_rotation!(w_base::SVector{B}, β_lu, ::CyclicSymmetry{R}) where {B
     end
     SVector(w)
 end
+make_rotation!(w::SVector, β_lu, ::NoSymmetry) = w
 
 "Construct Polygon with cyclic symmetry"
 function Polygon(
@@ -144,29 +145,6 @@ function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where 
         β_lu[1+B+rng.start-k] = β
     end
     SVector{2B-P}(w..., mirror[rng]...)
-end
-
-function Polygon(
-    w_base::SVector{B,W},
-    symmetry::BilateralSymmetry{P},
-    β_lu_base::Dict{Int,<:Number} = Dict{Int,Float64}(),
-) where {B,W,P}
-    w_rotbase = make_mirror!(w_base, β_lu_base, symmetry)
-    (β, ℓ) = calc_β_ℓ(w_rotbase, β_lu_base)
-    num_missing = count(isnan, β)
-    if num_missing > 0
-        missing_value = (2 - sum(filter(!isnan, β)))
-        if num_missing == 1
-            # infinity on axis
-            β[findfirst(isnan, β)] = missing_value
-        elseif num_missing == 2 && count(isinf, w_base) == 1
-            # mirrored infinities, not on axis
-            β[findall(isnan, β)] .= missing_value / 2
-        else
-            throw(ArgumentError("missing left-turn angles"))
-        end
-    end
-    Polygon(w_rotbase, symmetry, β, ℓ)
 end
 
 function Polygon(
