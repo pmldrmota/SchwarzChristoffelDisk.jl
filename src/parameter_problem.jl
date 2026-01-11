@@ -85,6 +85,7 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     # todo: make sure that β[kN-1] ≠ 1, i.e., the unconstrained one.
     num_infs = count(isinf, poly.w)
     if num_infs < 2
+        # even if there is 1 infinity, it has to be on the symmetry axis
         num_free = length(free_params(poly))
         idx₁ = prevertex_start_idx(poly)
         if num_free == 1
@@ -107,9 +108,7 @@ function ProblemIndices(poly::Polygon{N}) where {N}
 end
 
 function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
-    idx₁ = prevertex_start_idx(poly)
-    finite_ℓ = findall_circ(isfinite, poly.ℓ, idx₁)
-    kN = popfirst!(finite_ℓ)
+    kN = findnext_circ(isfinite, poly.ℓ, prevertex_start_idx(poly))
 
     num_free = length(free_params(poly))
     num_missing = num_free - 2
