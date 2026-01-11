@@ -82,6 +82,7 @@ findall_circ(predicate::Function, A::StaticVector{N}, start::Integer) where {N} 
     mod1.(start - 1 .+ findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:N), N)
 
 function ProblemIndices(poly::Polygon{N}) where {N}
+    # todo: make sure that β[kN-1] ≠ 1, i.e., the unconstrained one.
     num_infs = count(isinf, poly.w)
     if num_infs < 2
         num_free = length(free_params(poly))
