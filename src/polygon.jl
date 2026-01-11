@@ -120,10 +120,10 @@ i.e., the last vertex in the base is connected to the first vertex in the
 image.
 """
 function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where {B,P}
+    normalised_axis = s.axis / abs(s.axis)
     mirror = map(point -> if isinf(point)
         point
     else
-        normalised_axis = s.axis / abs(s.axis)
         normalised_axis * conj(normalised_axis' * point)
     end, w)
     # Is [begin] or [end] on the symmetry axis?
