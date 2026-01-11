@@ -84,7 +84,7 @@ function make_rotation!(w_base::SVector{B}, β_lu, ::CyclicSymmetry{R}) where {B
     end
     # extend left-turn angle lookup to full polygon
     for (k, β) ∈ pairs(β_lu)
-        for i ∈ 0:(R-1)
+        for i ∈ 1:(R-1)
             β_lu[B*i+k] = β
         end
     end
