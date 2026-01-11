@@ -136,35 +136,24 @@ function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R
     ProblemIndices{length(k_fix),length(k_len)}(kN, k_fix, k_len)
 end
 
-function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R,0}}) where {N,R}
-    # for P=0, there is definitely no infinity on any symmetry axis
+function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
+    # For P=0, there is definitely no infinity on any symmetry axis.
+    # Therefore, the rotational degree of freedom is constrained by kN and the symmetric
+    # vertex, which means we don't need k_fix in the same segment.
     kN = prevertex_start_idx(poly)
-
+    # the total number of parameters and constraints needs to be `2 * length(k_fix) + length(k_len)`
     num_free = length(free_params(poly))
-    num_segments = min(count(isinf, poly.w) ÷ 2R + 1, num_free ÷ 2)
-    num_missing = num_free
-
-    k_fix = @MVector zeros(Int, num_segments)
-    prv = kN
-    for segidx ∈ 1:num_segments
-        next_inf = findnext_circ(isinf, poly.w, prv + 1)
-        prv = k_fix[segidx] = mod1(next_inf+1, N)
-        num_missing -= 2
-    end
-
-    k_len = @MVector zeros(Int, num_missing)
-    current_idx = k_fix[begin]
-    while num_missing > 0
-        current_idx = mod1(current_idx, N)
-        if isfinite(poly.ℓ[current_idx])
-            k_len[num_missing] = current_idx
-            num_missing -= 1
-            current_idx += 1
-        else
-            current_idx += 2
-        end
-    end
-    ProblemIndices{length(k_fix),length(k_len)}(kN, k_fix, k_len)
+    # however, because each fixed vertex comes with 2 constraints, we need to round down, in case
+    # we hit the upper limit from the number of segments below
+    max_num_fix = fld(num_free, 2)
+    # todo: fixme for P≠0
+    # for P=0, this is correct
+    num_segments = count(isinf, poly.w) ÷ 2R + 1
+    num_fix = min(max_num_fix, num_segments - 1)
+    num_len = num_free - 2 * num_fix
+    k_fix = (findall_circ(isinf, poly.w, kN) .+ 1)[1:num_fix]
+    k_len = findall_circ(isfinite, poly.ℓ, kN)[1:num_len]
+    ProblemIndices{num_fix,num_len}(kN, k_fix, k_len)
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
