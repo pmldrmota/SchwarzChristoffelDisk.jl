@@ -17,6 +17,13 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
         N < 3 && throw(ArgumentError("Polygon must have at least 3 nodes"))
         double_∞ = findfirst(i -> isinf(w[i]) && isinf(w[mod1(i + 1, N)]), 1:N)
         isnothing(double_∞) || throw(ArgumentError("found consecutive infinities"))
+        for (i, (wi, βi)) ∈ enumerate(zip(w, β))
+            if isfinite(wi)
+                (-1 ≤ βi < 1) || throw(ArgumentError("β[$i] ∉ [-1, 1] at node $i ($wi)"))
+            else
+                (1 ≤ βi ≤ 3) || throw(ArgumentError("β[$i] ∉ [1, 3] at node $i (∞)"))
+            end
+        end
         ∑β = sum(β)
         isapprox(∑β, 2; rtol = 1e-5) || throw(ArgumentError("wrong angles (∑β=$∑β)"))
         new{N,S,eltype(w),eltype(β),eltype(ℓ)}(SVector(w), s, SVector(β), SVector(ℓ))
