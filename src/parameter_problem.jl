@@ -109,31 +109,16 @@ end
 
 function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     kN = findnext_circ(isfinite, poly.ℓ, prevertex_start_idx(poly))
+    k₁ = mod1(kN+1, N)
+    k∞ = findall_circ(isinf, poly.w, k₁)
 
     num_free = length(free_params(poly))
-    num_missing = num_free - 2
-    num_segments = count(isinf, poly.w) ÷ R
+    num_segments = length(k∞) ÷ R
+    num_len = num_free - 2 * num_segments
 
-    k_fix = @MVector zeros(Int, num_segments)
-    k_fix[1] = mod1(kN+1, N)
-    for segidx ∈ 2:num_segments
-        next_inf = findnext_circ(isinf, poly.w, k_fix[segidx-1] + 1)
-        k_fix[segidx] = mod1(next_inf+1, N)
-        num_missing -= 2
-    end
-    k_len = @MVector zeros(Int, num_missing)
-    current_idx = k_fix[begin]
-    while num_missing > 0
-        current_idx = mod1(current_idx, N)
-        if isfinite(poly.ℓ[current_idx])
-            k_len[num_missing] = current_idx
-            num_missing -= 1
-            current_idx += 1
-        else
-            current_idx += 2
-        end
-    end
-    ProblemIndices{length(k_fix),length(k_len)}(kN, k_fix, k_len)
+    k_fix = [k₁; mod1.(k∞[1:(num_segments-1)] .+ 1, N)]
+    k_len = findall_circ(isfinite, poly.ℓ, k₁)[1:num_len]
+    ProblemIndices{num_segments,num_len}(kN, k_fix, k_len)
 end
 
 function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
