@@ -161,7 +161,7 @@ function Polygon(
         missing_value = (2 - sum(filter(!isnan, β)))
         if num_missing == R
             β[findall(isnan, β)] .= missing_value / R
-        elseif num_missing == 2R
+        elseif num_missing == 2R && count(isinf, w_base) == 1
             β[findall(isnan, β)] .= missing_value / 2R
         else
             throw(ArgumentError("missing left-turn angles"))
