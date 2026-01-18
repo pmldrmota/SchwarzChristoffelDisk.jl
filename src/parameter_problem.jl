@@ -128,14 +128,12 @@ function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R,0}}) wher
     # For P=0, there is definitely no infinity on any symmetry axis.
     # Therefore, the rotational degree of freedom is constrained by kN and the symmetric
     # vertex, which means we don't need k_fix in the same segment.
-    idx₁ = first_independent_vertex(poly)
-    kN = symmetry_start_idx(idx₁, poly.s)
+    kN = idx₁ = first_independent_vertex(poly)
     # the total number of parameters and constraints needs to be `2 * length(k_fix) + length(k_len)`
     num_free = length(free_params(poly))
     # however, because each fixed vertex comes with 2 constraints, we need to round down, in case
     # we hit the upper limit from the number of segments below
     max_num_fix = fld(num_free, 2)
-    # todo: fixme for P≠0
     # for P=0, this is correct
     num_segments = count(isinf, poly.w) ÷ 2R + 1
     num_fix = min(max_num_fix, num_segments - 1)
@@ -147,9 +145,8 @@ function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R,0}}) wher
 end
 
 function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R,1}}) where {N,R}
-    idx₁ = first_independent_vertex(poly)
-    start = idx₁  # self-symmetric points are allowed here
-    kN = isinf(poly.w[start]) ? mod1(start + 1, N) : start
+    idx₁ = first_independent_vertex(poly)  # always on axis
+    kN = isinf(poly.w[idx₁]) ? mod1(idx₁ + 1, N) : idx₁
     # the total number of parameters and constraints needs to be `2 * length(k_fix) + length(k_len)`
     num_free = length(free_params(poly))
     # however, because each fixed vertex comes with 2 constraints, we need to round down, in case
