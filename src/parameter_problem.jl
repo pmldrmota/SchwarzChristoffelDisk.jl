@@ -124,27 +124,12 @@ function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R
     ProblemIndices{num_segments,num_len}(Δ, kN, k_fix, k_len)
 end
 
-function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R,0}}) where {N,R}
+function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
     # For P=0, there is definitely no infinity on any symmetry axis.
     # Therefore, the rotational degree of freedom is constrained by kN and the symmetric
     # vertex, which means we don't need k_fix in the same segment.
-    kN = idx₁ = first_independent_vertex(poly)
-    # the total number of parameters and constraints needs to be `2 * length(k_fix) + length(k_len)`
-    num_free = length(free_params(poly))
-    # however, because each fixed vertex comes with 2 constraints, we need to round down, in case
-    # we hit the upper limit from the number of segments below
-    max_num_fix = fld(num_free, 2)
-    # for P=0, this is correct
-    num_segments = count(isinf, poly.w) ÷ 2R + 1
-    num_fix = min(max_num_fix, num_segments - 1)
-    num_len = num_free - 2 * num_fix
-    k_fix = (findall_circ(isinf, poly.w, kN) .+ 1)[1:num_fix]
-    k_len = findall_circ(isfinite, poly.ℓ, kN)[1:num_len]
-    Δ = prevertex_shift(idx₁, poly.s)
-    ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
-end
-
-function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R,1}}) where {N,R}
+    # For P=1, idx₁ is always on axis and on the other axis, there is definitely no infinity.
+    # Therefore, the rotational DOF is again constrained from that segment.
     idx₁ = first_independent_vertex(poly)  # always on axis
     kN = isinf(poly.w[idx₁]) ? mod1(idx₁ + 1, N) : idx₁
     # the total number of parameters and constraints needs to be `2 * length(k_fix) + length(k_len)`
