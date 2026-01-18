@@ -70,9 +70,9 @@ end
 prevertex_shift(idx₁::Int, ::CyclicSymmetry) = 0
 prevertex_shift(idx₁::Int, ::DihedralSymmetry) = idx₁ - 1
 
-symmetry_start_idx(idx₁, ::CyclicSymmetry) = 1
-symmetry_start_idx(idx₁, ::DihedralSymmetry{<:Any,0}) = idx₁
-symmetry_start_idx(idx₁, ::DihedralSymmetry) = idx₁ + 1
+symmetry_start_idx(idx₁, ::Polygon{<:Any,<:CyclicSymmetry}) = 1
+symmetry_start_idx(idx₁, ::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) = idx₁
+symmetry_start_idx(idx₁, ::Polygon{N,<:DihedralSymmetry}) where {N} = mod1(idx₁ + 1, N)
 
 findnext_circ(predicate::Function, A::StaticVector{N}, start::Integer) where {N} =
     mod1(start - 1 + findfirst(i -> predicate(A[mod1(start - 1 + i, N)]), 1:N), N)
@@ -84,7 +84,7 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     num_infs = count(isinf, poly.w)
     if num_infs < 2
         idx₁ = first_independent_vertex(poly)
-        start = symmetry_start_idx(idx₁, poly.s)
+        start = symmetry_start_idx(idx₁, poly)
         Δ = prevertex_shift(idx₁, poly.s)
         # even if there is 1 infinity, it has to be on the symmetry axis
         num_free = length(free_params(poly))
@@ -109,7 +109,7 @@ end
 
 function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     idx₁ = first_independent_vertex(poly)
-    start = symmetry_start_idx(idx₁, poly.s)
+    start = symmetry_start_idx(idx₁, poly)
     kN = findnext_circ(isfinite, poly.ℓ, start)
     k₁ = mod1(kN+1, N)
     k∞ = findall_circ(isinf, poly.w, k₁)
