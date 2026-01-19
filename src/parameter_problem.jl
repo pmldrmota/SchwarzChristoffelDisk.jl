@@ -74,10 +74,10 @@ symmetry_start_idx(idx₁, ::Polygon{<:Any,<:CyclicSymmetry}) = 1
 symmetry_start_idx(idx₁, ::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) = idx₁
 symmetry_start_idx(idx₁, ::Polygon{N,<:DihedralSymmetry}) where {N} = mod1(idx₁ + 1, N)
 
-findnext_circ(predicate::Function, A::StaticVector{N}, start::Integer) where {N} =
-    mod1(start - 1 + findfirst(i -> predicate(A[mod1(start - 1 + i, N)]), 1:N), N)
-findall_circ(predicate::Function, A::StaticVector{N}, start::Integer) where {N} =
-    mod1.(start - 1 .+ findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:N), N)
+findnext_circ(predicate::Function, A::StaticVector{N}, start::Integer, steps::Integer = N) where {N} =
+    mod1(start - 1 + findfirst(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps), N)
+findall_circ(predicate::Function, A::StaticVector{N}, start::Integer, steps::Integer = N) where {N} =
+    mod1.(start - 1 .+ findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps), N)
 
 function ProblemIndices(poly::Polygon{N}) where {N}
     # todo: make sure that β[kN-1] ≠ 1, i.e., the unconstrained one.
@@ -109,8 +109,7 @@ end
 
 function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     idx₁ = first_independent_vertex(poly)
-    start = symmetry_start_idx(idx₁, poly)
-    kN = findnext_circ(isfinite, poly.ℓ, start)
+    kN = findnext_circ(isfinite, poly.ℓ, 1)
     k₁ = mod1(kN+1, N)
     k∞ = findall_circ(isinf, poly.w, k₁)
 
@@ -139,12 +138,25 @@ function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where 
     max_num_fix = fld(num_free, 2)
     ∞_on_axes = num_infs_on_axes(poly)
     num_segments = (count(isinf, poly.w) - R * ∞_on_axes) ÷ 2R + 1
-    num_fix = min(max_num_fix, num_segments - 1)
-    num_len = num_free - 2 * num_fix
-    k_fix = (findall_circ(isinf, poly.w, kN) .+ 1)[1:num_fix]
-    k_len = findall_circ(isfinite, poly.ℓ, kN)[1:num_len]
+    min_num_fix = min(max_num_fix, num_segments - 1)
+    num_len = num_free - 2 * min_num_fix
+    num_independent = num_independent_vertices(poly)
+
+    # start out with the minimal number of k_fix (one per segment)
+    k_fix = (findall_circ(isinf, poly.w, kN) .+ 1)[1:min_num_fix]
+
+    # start out with the maximum number of k_len in the symmetry base
+    k_len = findall_circ(isfinite, poly.ℓ, idx₁, num_independent)
+
+    # while there are not enough k_len in the symmetry base, add k_fix
+    while length(k_len) < num_len
+        push!(k_fix, mod1(popfirst!(k_len) + 1, N))
+        num_len -= 2
+    end
+    keepat!(k_len, 1:num_len)
+
     Δ = prevertex_shift(idx₁, poly.s)
-    ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
+    ProblemIndices{length(k_fix),length(k_len)}(Δ, kN, k_fix, k_len)
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
