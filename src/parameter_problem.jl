@@ -107,49 +107,40 @@ end
 
 function ProblemIndices(poly::Polygon{N}) where {N}
     # todo: make sure that β[kN-1] ≠ 1, i.e., the unconstrained one.
-    num_infs = count(isinf, poly.w)
-    if num_infs < 2
+    num_free = length(free_params(poly))
+    if num_free == 1
+        # pick the first finite edge in the symmetry base
         idx₁ = first_independent_vertex(poly)
         start = symmetry_start_idx(idx₁, poly)
+        kN = findnext_circ(isfinite, poly.ℓ, start)
         Δ = prevertex_shift(idx₁, poly.s)
-        # even if there is 1 infinity, it has to be on the symmetry axis
-        num_free = length(free_params(poly))
-        if num_free == 1
-            # pick the first finite edge in the symmetry base
-            kN = findnext_circ(isfinite, poly.ℓ, start)
-            return ProblemIndices{0,1}(Δ, kN, SVector{0}(), SA[kN])
-        else
-            # pick the first two connected vertices in the symmetry base and enough finite edges
-            finite_ℓ = findall_circ(isfinite, poly.ℓ, start)
-            kN = popfirst!(finite_ℓ)
-            k_fix = SA[mod1(kN+1, N)]
-            num_ℓ = num_free - 2
-            k_len = SVector{num_ℓ}(finite_ℓ[1:num_ℓ])
-            return ProblemIndices{1,num_ℓ}(Δ, kN, k_fix, k_len)
-        end
+        ProblemIndices{0,1}(Δ, kN, SVector{0}(), SA[kN])
     else
-        # dispatch on symmetry if there are disjoint segments in the polygon
-        return problem_indices_disjoint(poly)
+        problem_indices(poly)
     end
 end
 
-function problem_indices_disjoint(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
+function problem_indices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     idx₁ = first_independent_vertex(poly)
     kN = findnext_circ(isfinite, poly.ℓ, 1)
     k₁ = mod1(kN+1, N)
     k∞ = findall_circ(isinf, poly.w, k₁)
 
     num_free = length(free_params(poly))
-    num_segments = length(k∞) ÷ R
+    num_segments = max(1, length(k∞) ÷ R)
     num_len = num_free - 2 * num_segments
 
     k_fix = [k₁; mod1.(k∞[1:(num_segments-1)] .+ 1, N)]
+    # todo: fix issue where we have to constrain one length in the next
+    # segment, but it can't be the same length that is symmetric to kN.
+    # what's the general pattern here?
     k_len = findall_circ(isfinite, poly.ℓ, k₁)[1:num_len]
+    # k_len[end] = mod1(k_len[end] + 1, N)
     Δ = prevertex_shift(idx₁, poly.s)
     ProblemIndices{num_segments,num_len}(Δ, kN, k_fix, k_len)
 end
 
-function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
+function problem_indices(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
     # For P=0, there is definitely no infinity on any symmetry axis.
     # Therefore, the rotational degree of freedom is constrained by kN and the symmetric
     # vertex, which means we don't need k_fix in the same segment.
@@ -162,17 +153,16 @@ function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where 
     # we hit the upper limit from the number of segments below
     max_num_fix = fld(num_free, 2)
     ∞_on_axes = num_infs_on_axes(poly)
-    num_segments = (count(isinf, poly.w) - R * ∞_on_axes) ÷ 2R + 1
+    num_∞ = count(isinf, poly.w)
+    num_segments = (num_∞ - R * ∞_on_axes) ÷ 2R + 1
     min_num_fix = min(max_num_fix, num_segments - 1)
     num_len = num_free - 2 * min_num_fix
     num_independent = num_independent_vertices(poly)
 
     # start out with the minimal number of k_fix (one per segment)
     k_fix = (findall_circ(isinf, poly.w, idx₁+1) .+ 1)[1:min_num_fix]
-
     # start out with the maximum number of k_len in the symmetry base
     k_len = findall_circ(isfinite, poly.ℓ, idx₁, num_independent)
-
     # while there are not enough k_len in the symmetry base, add k_fix
     while length(k_len) < num_len
         push!(k_fix, mod1(popfirst!(k_len) + 1, N))
@@ -182,10 +172,10 @@ function problem_indices_disjoint(poly::Polygon{N,<:DihedralSymmetry{R}}) where 
 
     # choose kN such that it fixes the first segment but doesn't coincide with
     # the symmetry axis unless absolutely necessary
-    ∞₁ = findnext_circ(isinf, poly.w, idx₁+1)
+    ∞₁ = (num_∞ == 0) ? (idx₁ + num_independent - 1) : findnext_circ(isinf, poly.w, idx₁+1)
     kN = mod1(∞₁ - 1, N)
-    while kN ∈ k_fix || kN ∈ (k_len .+ 1) || isinf(kN)
-        kN = mod1(kN-1,N)
+    while kN ∈ k_fix || mod1(kN - 1, N) ∈ k_len || isinf(poly.w[kN])
+        kN = mod1(kN - 1, N)
     end
     Δ = prevertex_shift(idx₁, poly.s)
     ProblemIndices{length(k_fix),length(k_len)}(Δ, kN, k_fix, k_len)
