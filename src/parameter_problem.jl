@@ -74,10 +74,36 @@ symmetry_start_idx(idx₁, ::Polygon{<:Any,<:CyclicSymmetry}) = 1
 symmetry_start_idx(idx₁, ::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) = idx₁
 symmetry_start_idx(idx₁, ::Polygon{N,<:DihedralSymmetry}) where {N} = mod1(idx₁ + 1, N)
 
-findnext_circ(predicate::Function, A::StaticVector{N}, start::Integer, steps::Integer = N) where {N} =
-    mod1(start - 1 + findfirst(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps), N)
-findall_circ(predicate::Function, A::StaticVector{N}, start::Integer, steps::Integer = N) where {N} =
-    mod1.(start - 1 .+ findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps), N)
+"""Find the first occurrence for which predicate evaluates to true
+
+The start and steps limit the elements considered to [start:(start+steps)].
+"""
+function findnext_circ(
+    predicate::Function,
+    A::StaticVector{N},
+    start::Integer,
+    steps::Integer = N,
+) where {N}
+    ff = findfirst(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps)
+    isnothing(ff) && return nothing
+    mod1(start - 1 + ff, N)
+end
+
+"""Find all occurrences for which predicate evaluates to true
+
+The start and steps limit the elements considered to [start:(start+steps)].
+The search results are naturally in circular order.
+"""
+function findall_circ(
+    predicate::Function,
+    A::StaticVector{N},
+    start::Integer,
+    steps::Integer = N,
+) where {N}
+    ff = findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps)
+    isnothing(ff) && return nothing
+    mod1.(start - 1 .+ ff, N)
+end
 
 function ProblemIndices(poly::Polygon{N}) where {N}
     # todo: make sure that β[kN-1] ≠ 1, i.e., the unconstrained one.
