@@ -67,7 +67,7 @@ function fill_polygon(p::Polygon, ax; color = color, kwargs...)
 end
 
 function sc_draw_polygon!(f, ax, poly_fill=false; color = :black, kwargs...)
-    N = Size(f.z)[1]
+    N = length(f.z)
     ws = SVector{N,ComplexF64}(sc_trafo(f, zk) for zk ∈ f.z)
     poly = Polygon(ws, Dict(1:N .=> f.β))
     if poly_fill
