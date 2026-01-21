@@ -26,10 +26,17 @@ end
 
 # dispatch free parameters based on typed symmetry
 free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
-cyclic_free_params(::Val{1}) = @MVector zeros(0)
-cyclic_free_params(::Val{2}) = @MVector zeros(1)
-cyclic_free_params(::Val{V}) where {V} = @MVector zeros(V)
-free_params(::Polygon{N,CyclicSymmetry{R}}) where {N,R} = cyclic_free_params(Val(N ÷ R))
+function free_params(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
+    V = N ÷ R
+    if V == 1
+        @MVector zeros(0)
+    elseif V == 2
+        z = (isinf(poly.w[1]) || isinf(poly.w[2])) ? 0 : 1
+        @MVector zeros(z)
+    else
+        @MVector zeros(V)
+    end
+end
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
