@@ -163,8 +163,8 @@ function problem_indices(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
     k_fix = (findall_circ(isinf, poly.w, idx₁+1) .+ 1)[1:min_num_fix]
     # start out with the maximum number of k_len in the symmetry base
     k_len = findall_circ(isfinite, poly.ℓ, idx₁, num_independent)
-    # while there are not enough k_len in the symmetry base, add k_fix
-    while length(k_len) < num_len
+    # if there are not enough k_len in the symmetry base, add k_fix
+    if length(k_len) < num_len
         push!(k_fix, mod1(popfirst!(k_len) + 1, N))
         num_len -= 2
     end
