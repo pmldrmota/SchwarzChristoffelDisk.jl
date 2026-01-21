@@ -77,10 +77,6 @@ end
 prevertex_shift(idx₁::Int, ::CyclicSymmetry) = 0
 prevertex_shift(idx₁::Int, ::DihedralSymmetry) = idx₁ - 1
 
-symmetry_start_idx(idx₁, ::Polygon{<:Any,<:CyclicSymmetry}) = 1
-symmetry_start_idx(idx₁, ::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) = idx₁
-symmetry_start_idx(idx₁, ::Polygon{N,<:DihedralSymmetry}) where {N} = mod1(idx₁ + 1, N)
-
 """Find the first occurrence for which predicate evaluates to true
 
 The start and steps limit the elements considered to [start:(start+steps)].
@@ -118,7 +114,12 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     if num_free == 1
         # pick the first finite edge in the symmetry base
         idx₁ = first_independent_vertex(poly)
-        start = symmetry_start_idx(idx₁, poly)
+
+        symmetry_start_idx(::CyclicSymmetry) = 1
+        symmetry_start_idx(::DihedralSymmetry{<:Any,0}) = idx₁
+        symmetry_start_idx(::DihedralSymmetry) = mod1(idx₁ + 1, N)
+
+        start = symmetry_start_idx(poly.s)
         kN = findnext_circ(isfinite, poly.ℓ, start)
         Δ = prevertex_shift(idx₁, poly.s)
         ProblemIndices{0,1}(Δ, kN, SVector{0}(), SA[kN])
