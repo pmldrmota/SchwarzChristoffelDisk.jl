@@ -169,12 +169,16 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
     end
     keepat!(k_len, 1:num_len)
 
-    # choose kN such that it fixes the first segment but doesn't coincide with
-    # the symmetry axis unless absolutely necessary
-    ∞₁ = (num_∞ == 0) ? (idx₁ + num_independent - 1) : findnext_circ(isinf, poly.w, idx₁+1)
-    kN = mod1(∞₁ - 1, N)
-    while kN ∈ k_fix || mod1(kN - 1, N) ∈ k_len || isinf(poly.w[kN])
-        kN = mod1(kN - 1, N)
+    if num_∞ == 0
+        kN = k_len[1]
+    else
+        # choose kN such that it fixes the first segment but doesn't coincide with
+        # the symmetry axis unless absolutely necessary
+        ∞₁ = findnext_circ(isinf, poly.w, idx₁+1)
+        kN = mod1(∞₁ - 1, N)
+        while kN ∈ k_fix || mod1(kN - 1, N) ∈ k_len || isinf(poly.w[kN])
+            kN = mod1(kN - 1, N)
+        end
     end
     ProblemIndices{length(k_fix),length(k_len)}(Δ, kN, k_fix, k_len)
 end
