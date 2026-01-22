@@ -29,29 +29,30 @@ free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
 function free_params(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     V = N ÷ R
     if V == 1
+        # the location of this vertex is taken care of by the integration constant
         @MVector zeros(0)
     elseif V == 2
         z = (isinf(poly.w[1]) || isinf(poly.w[2])) ? 0 : 1
         @MVector zeros(z)
     else
-        @MVector zeros(V)
+        @MVector zeros(V-1)
     end
 end
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
+prevertex_repeat(v::MVector{V}, ::Val{R}) where {V,R} =
+    MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
+
 # Dispatch the prevertices based on the typed symmetry.
 prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
-    MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
-# Special case: cyclic symmetry with 2 vertices in base always gives [A,-A,A,-A...]
-prevertex_params(v::MVector{1}, ::CyclicSymmetry{R}) where {R} =
-    MVector{2R}(ntuple(i -> iseven(i) ? v[1] : -v[1], 2R))
+    prevertex_repeat(MVector{V+1}(v..., -sum(v)), Val(R))
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,0}) where {R,V} =
-    prevertex_params(MVector{2V}(v..., -v[end:-1:1]...), CyclicSymmetry{R}())
+    prevertex_repeat(MVector{2V}(v..., -v[end:-1:1]...), Val(R))
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,1}) where {R,V} =
-    prevertex_params(MVector{2V+1}(0, v..., -v[end:-1:1]...), CyclicSymmetry{R}())
+    prevertex_repeat(MVector{2V+1}(0, v..., -v[end:-1:1]...), Val(R))
 prevertex_params(v::MVector{V}, ::DihedralSymmetry{R,2}) where {R,V} =
-    prevertex_params(MVector{2V+2}(0, v..., 0, -v[end:-1:1]...), CyclicSymmetry{R}())
+    prevertex_repeat(MVector{2V+2}(0, v..., 0, -v[end:-1:1]...), Val(R))
 
 circshift_noalloc_poplast(v::MVector{V}, Δ::Int) where {V} =
     MVector{V-1}(ntuple(i -> v[mod1(i - Δ, V)], V - 1))
@@ -60,15 +61,8 @@ prevertices(v, ::NoSymmetry, ::Int) = v |> y_to_θ
 prevertices(v, s::AbstractSymmetry, Δ::Int) =
     circshift_noalloc_poplast(prevertex_params(v, s), Δ) |> y_to_θ
 
-# We define the start index for the prevetex params generation
-# For cyclic symmetry, it is important that the cost function connects vertices
-# across the base, where the base is implicitly defined in this prevertex_params
-# as vertices 1:R (to naturally work with DihedralSymmetry too). Therefore, we
-# start the cost function at 2.
-# For P=1 and P=2 we use the index of the first one after the axis itself.
-# The vertex on the axis is not really independent because can be found with
-# the left-turn angle information.
-prevertex_shift(idx₁::Int, ::CyclicSymmetry) = 0
+# We define the start index for the prevetex params generation.
+prevertex_shift(::Int, ::CyclicSymmetry) = 0
 prevertex_shift(idx₁::Int, ::DihedralSymmetry) = idx₁ - 1
 
 struct ProblemIndices{X,L}
@@ -105,7 +99,6 @@ function findall_circ(
     steps::Integer = N,
 ) where {N}
     ff = findall(i -> predicate(A[mod1(start - 1 + i, N)]), 1:steps)
-    isnothing(ff) && return nothing
     mod1.(start - 1 .+ ff, N)
 end
 
@@ -130,24 +123,45 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     end
 end
 
-function problem_indices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
-    idx₁ = first_independent_vertex(poly)
-    kN = findnext_circ(isfinite, poly.ℓ, 1)
+function problem_indices(poly::Polygon{N, NoSymmetry}) where {N}
+    num_∞ = count(isinf, poly.w)
+    num_free = length(free_params(poly))
+    num_fix = max(1, num_∞)
+    num_len = num_free - 2 * num_fix
+    if num_∞ == 0
+        # standard case: fix one edge with kN and k_fix, and rest with k_len
+        return ProblemIndices{1,num_len}(Δ, N, SA[1], 1:num_len)
+    end
+
+    kN = findfirst(isfinite, poly.ℓ)
     k₁ = mod1(kN+1, N)
     k∞ = findall_circ(isinf, poly.w, k₁)
-
-    num_free = length(free_params(poly))
-    num_segments = max(1, length(k∞) ÷ R)
-    num_len = num_free - 2 * num_segments
-
-    k_fix = [k₁; mod1.(k∞[1:(num_segments-1)] .+ 1, N)]
-    # todo: fix issue where we have to constrain one length in the next
-    # segment, but it can't be the same length that is symmetric to kN.
-    # what's the general pattern here?
+    k_fix = [k₁; mod1.(k∞[1:(num_fix-1)] .+ 1, N)]
     k_len = findall_circ(isfinite, poly.ℓ, k₁)[1:num_len]
-    # k_len[end] = mod1(k_len[end] + 1, N)
+    Δ = prevertex_shift(1, poly.s)
+    ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
+end
+
+function problem_indices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
+    idx₁ = first_independent_vertex(poly)
+    num_independent = num_independent_vertices(poly)
+    k∞_base = findall_circ(isinf, poly.w, idx₁, num_independent)
+    num_∞_base = length(k∞_base)
+    num_free = length(free_params(poly))
+    num_fix = max(1, num_∞_base - 1)
+    num_len = num_free - 2 * num_fix
     Δ = prevertex_shift(idx₁, poly.s)
-    ProblemIndices{num_segments,num_len}(Δ, kN, k_fix, k_len)
+
+    if num_∞_base == 0
+        # standard case: fix one edge with kN and k_fix, and rest with k_len
+        return ProblemIndices{1,num_len}(Δ, N, SA[1], 1:num_len)
+    end
+
+    kN = mod1(k∞_base[1] - 1, N)
+    k_fix = mod1.(k∞_base .+ 1, N)
+    k_len = findall_circ(isfinite, poly.ℓ, idx₁)[1:num_len]
+
+    ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
 end
 
 function problem_indices(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
