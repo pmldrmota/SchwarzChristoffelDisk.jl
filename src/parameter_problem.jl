@@ -61,6 +61,16 @@ prevertices(v, ::NoSymmetry, ::Int) = v |> y_to_θ
 prevertices(v, s::AbstractSymmetry, Δ::Int) =
     circshift_noalloc_poplast(prevertex_params(v, s), Δ) |> y_to_θ
 
+""" ProblemIndices
+
+  - Δ: The prevertex shift Δ is (idx₁-1), where idx₁ is the first independent
+    vertex of the polygon.
+  - kN: The index of the vertex which will be fixed by the integration constant
+    of the Schwarz-Christoffel transformation.
+  - k_fix: List of indices of vertices which will be fixed in both coordinates.
+  - k_len: List of indices of edges (starting at the vertex with that index) which
+    will be fixed to the desired length.
+"""
 struct ProblemIndices{X,L}
     Δ::Int  # prevertex shift
     kN::Int  # vertex fixed by integration constant
@@ -99,14 +109,12 @@ function findall_circ(
 end
 
 function ProblemIndices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
-    # prevertex shift for CyclicSymmetry is zero.
-    Δ = 0
     num_free = length(free_params(poly))
 
     if num_free == 1
         # shortcut for trivial case with 1 free parameter -> fix any finite edge
         kN = findfirst(isfinite, poly.ℓ)
-        return ProblemIndices{0,1}(Δ, kN, SVector{0}(), SA[kN])
+        return ProblemIndices{0,1}(0, kN, SVector{0}(), SA[kN])
     end
 
     num_independent = num_independent_vertices(poly)
@@ -117,7 +125,7 @@ function ProblemIndices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
 
     if num_∞_base == 0
         # standard case: fix one edge with kN and k_fix, and rest with k_len
-        return ProblemIndices{1,num_len}(Δ, N, SA[1], 1:num_len)
+        return ProblemIndices{1,num_len}(0, N, SA[1], 1:num_len)
     end
 
     kN = findfirst(isfinite, poly.ℓ)
@@ -126,7 +134,7 @@ function ProblemIndices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     k_fix = [k₁; mod1.(k∞[1:(num_fix-1)] .+ 1, N)]
     k_len = findall_circ(isfinite, poly.ℓ, k₁)[1:num_len]
 
-    ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
+    ProblemIndices{num_fix,num_len}(0, kN, k_fix, k_len)
 end
 
 function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
@@ -136,8 +144,6 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
     # For P=1, idx₁ is always on axis and on the other axis, there is definitely no infinity.
     # Therefore, the rotational DOF is again constrained from that segment.
     idx₁ = first_independent_vertex(poly)  # always on axis
-    # prevertex shift for DihedralSymmetry
-    Δ = idx₁ - 1
     # the total number of parameters and constraints needs to be `2 * length(k_fix) + length(k_len)`
     num_free = length(free_params(poly))
 
@@ -145,7 +151,7 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
         # shortcut for trivial case with 1 free parameter -> fix one finite edge
         start = mod1(idx₁ + (P > 0), N)
         kN = findnext_circ(isfinite, poly.ℓ, start)
-        return ProblemIndices{0,1}(Δ, kN, SVector{0}(), SA[kN])
+        return ProblemIndices{0,1}(idx₁-1, kN, SVector{0}(), SA[kN])
     end
 
     # however, because each fixed vertex comes with 2 constraints, we need to round down, in case
@@ -180,7 +186,7 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
             kN = mod1(kN - 1, N)
         end
     end
-    ProblemIndices{length(k_fix),length(k_len)}(Δ, kN, k_fix, k_len)
+    ProblemIndices{length(k_fix),length(k_len)}(idx₁-1, kN, k_fix, k_len)
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
