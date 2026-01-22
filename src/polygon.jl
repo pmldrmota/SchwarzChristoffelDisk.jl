@@ -214,7 +214,7 @@ function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R,0}}) wher
     end, 1:N)
 end
 
-num_infs_on_axes(poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,0}}) = 0
+num_infs_on_axes(poly::Polygon) = 0
 # Number of points on axes minus number of finite points on axis.
 num_infs_on_axes(poly::Polygon{<:Any,<:BilateralSymmetry{P}}) where {P} =
     P - count(v -> isfinite(v) && is_on(poly.s.axis, v), poly.w)

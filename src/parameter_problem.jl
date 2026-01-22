@@ -24,7 +24,7 @@ function sc_fix!(f, θ, kN, wN)
     f.c = wN / sc_trafo(f, f.z[kN])
 end
 
-# dispatch free parameters based on typed symmetry
+# Dispatch free parameters based on the typed symmetry.
 free_params(::Polygon{N,NoSymmetry}) where {N} = @MVector zeros(N - 1)
 function free_params(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     V = N ÷ R
@@ -40,6 +40,7 @@ end
 free_params(::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P} =
     @MVector zeros((N ÷ R - P) ÷ 2)
 
+# Dispatch the prevertices based on the typed symmetry.
 prevertex_params(v::MVector{V}, ::CyclicSymmetry{R}) where {V,R} =
     MVector{R * V}(ntuple(i -> v[mod1(i, V)], R * V))
 # Special case: cyclic symmetry with 2 vertices in base always gives [A,-A,A,-A...]
@@ -59,13 +60,6 @@ prevertices(v, ::NoSymmetry, ::Int) = v |> y_to_θ
 prevertices(v, s::AbstractSymmetry, Δ::Int) =
     circshift_noalloc_poplast(prevertex_params(v, s), Δ) |> y_to_θ
 
-struct ProblemIndices{X,L}
-    Δ::Int  # prevertex shift
-    kN::Int  # vertex fixed by integration constant
-    k_fix::SVector{X,Int}  # vertices fixed by cost function
-    k_len::SVector{L,Int}  # edges fixed by cost function
-end
-
 # We define the start index for the prevetex params generation
 # For cyclic symmetry, it is important that the cost function connects vertices
 # across the base, where the base is implicitly defined in this prevertex_params
@@ -76,6 +70,13 @@ end
 # the left-turn angle information.
 prevertex_shift(idx₁::Int, ::CyclicSymmetry) = 0
 prevertex_shift(idx₁::Int, ::DihedralSymmetry) = idx₁ - 1
+
+struct ProblemIndices{X,L}
+    Δ::Int  # prevertex shift
+    kN::Int  # vertex fixed by integration constant
+    k_fix::SVector{X,Int}  # vertices fixed by cost function
+    k_len::SVector{L,Int}  # edges fixed by cost function
+end
 
 """Find the first occurrence for which predicate evaluates to true
 
@@ -124,6 +125,7 @@ function ProblemIndices(poly::Polygon{N}) where {N}
         Δ = prevertex_shift(idx₁, poly.s)
         ProblemIndices{0,1}(Δ, kN, SVector{0}(), SA[kN])
     else
+        # dispatch on typed symmetry
         problem_indices(poly)
     end
 end
