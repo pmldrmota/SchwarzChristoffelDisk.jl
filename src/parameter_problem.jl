@@ -123,12 +123,17 @@ function ProblemIndices(poly::Polygon{N}) where {N}
     end
 end
 
-function problem_indices(poly::Polygon{N, NoSymmetry}) where {N}
-    num_∞ = count(isinf, poly.w)
+function problem_indices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
+    idx₁ = first_independent_vertex(poly)
+    num_independent = num_independent_vertices(poly)
+    k∞_base = findall_circ(isinf, poly.w, idx₁, num_independent)
+    num_∞_base = length(k∞_base)
     num_free = length(free_params(poly))
-    num_fix = max(1, num_∞)
+    num_fix = max(1, num_∞_base - (R > 1))
     num_len = num_free - 2 * num_fix
-    if num_∞ == 0
+    Δ = prevertex_shift(idx₁, poly.s)
+
+    if num_∞_base == 0
         # standard case: fix one edge with kN and k_fix, and rest with k_len
         return ProblemIndices{1,num_len}(Δ, N, SA[1], 1:num_len)
     end
@@ -138,28 +143,6 @@ function problem_indices(poly::Polygon{N, NoSymmetry}) where {N}
     k∞ = findall_circ(isinf, poly.w, k₁)
     k_fix = [k₁; mod1.(k∞[1:(num_fix-1)] .+ 1, N)]
     k_len = findall_circ(isfinite, poly.ℓ, k₁)[1:num_len]
-    Δ = prevertex_shift(1, poly.s)
-    ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
-end
-
-function problem_indices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
-    idx₁ = first_independent_vertex(poly)
-    num_independent = num_independent_vertices(poly)
-    k∞_base = findall_circ(isinf, poly.w, idx₁, num_independent)
-    num_∞_base = length(k∞_base)
-    num_free = length(free_params(poly))
-    num_fix = max(1, num_∞_base - 1)
-    num_len = num_free - 2 * num_fix
-    Δ = prevertex_shift(idx₁, poly.s)
-
-    if num_∞_base == 0
-        # standard case: fix one edge with kN and k_fix, and rest with k_len
-        return ProblemIndices{1,num_len}(Δ, N, SA[1], 1:num_len)
-    end
-
-    kN = mod1(k∞_base[1] - 1, N)
-    k_fix = mod1.(k∞_base .+ 1, N)
-    k_len = findall_circ(isfinite, poly.ℓ, idx₁)[1:num_len]
 
     ProblemIndices{num_fix,num_len}(Δ, kN, k_fix, k_len)
 end
