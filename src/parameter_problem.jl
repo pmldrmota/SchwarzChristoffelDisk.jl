@@ -16,8 +16,6 @@ end
 """
 function sc_fix!(f, θ, kN, wN)
     f.z .= cispi.(θ)
-    any(isnan, f.z) && error("sc_fix! got NaN output from θ=$θ.")
-
     # evaluate image vertices with unit constant
     f.c = 1
     # fix scaling constant such that wN is correct
@@ -190,13 +188,17 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
-    sc_fix!(f, prevertices(x, poly.s, idxs.Δ), idxs.kN, poly.w[idxs.kN])
+    y = prevertices(x, poly.s, idxs.Δ)
+    any(isnan, y) && throw(DomainError("NaN encountered in cost function"))
+    sc_fix!(f, y, idxs.kN, poly.w[idxs.kN])
     k = idxs.k_len[1]
     F[1] = abs(sc_segment(f, k)) - poly.ℓ[k]
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
-    sc_fix!(f, prevertices(x, poly.s, idxs.Δ), idxs.kN, poly.w[idxs.kN])
+    y = prevertices(x, poly.s, idxs.Δ)
+    any(isnan, y) && throw(DomainError("NaN encountered in cost function"))
+    sc_fix!(f, y, idxs.kN, poly.w[idxs.kN])
 
     # fix one vertex per component - 2 real conditions each
     @inbounds for (i, k) ∈ enumerate(idxs.k_fix)
@@ -222,10 +224,27 @@ end
 
 function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
     idxs = ProblemIndices(poly)
-    @show idxs
+    # @show idxs
     f = SchwarzChristoffel(prevertices(x₀, poly.s, idxs.Δ), poly.β)
+
     # solve
-    sol = nlsolve((F, x) -> cost_function!(F, x, f, poly, idxs), x₀; ftol = 1e-10)
+    retries = 10
+    sol = nothing
+    while retries > 0
+        try
+            sol = nlsolve((F, x) -> cost_function!(F, x, f, poly, idxs), x₀; ftol = 1e-10)
+            break
+        catch DomainError
+            @warn "Re-attempting nlsolve with random starting point"
+            retries -= 1
+            # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
+            for i ∈ eachindex(x₀)
+                x₀[i] = randn()
+            end
+        end
+    end
+    isnothing(sol) && error("Failed to solve parameter problem")
+
     # apply solution
     sc_fix!(f, prevertices(sol.zero, poly.s, idxs.Δ), idxs.kN, poly.w[idxs.kN])
     sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
