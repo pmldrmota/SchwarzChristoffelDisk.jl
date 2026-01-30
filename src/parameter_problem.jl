@@ -187,14 +187,6 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
     ProblemIndices{length(k_fix),length(k_len)}(idx₁-1, kN, k_fix, k_len)
 end
 
-function cost_function!(F, x, f, poly, idxs::ProblemIndices{0,1})
-    y = prevertices(x, poly.s, idxs.Δ)
-    any(isnan, y) && throw(DomainError("NaN encountered in cost function"))
-    sc_fix!(f, y, idxs.kN, poly.w[idxs.kN])
-    k = idxs.k_len[1]
-    F[1] = abs(sc_segment(f, k)) - poly.ℓ[k]
-end
-
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
     y = prevertices(x, poly.s, idxs.Δ)
     any(isnan, y) && throw(DomainError("NaN encountered in cost function"))
