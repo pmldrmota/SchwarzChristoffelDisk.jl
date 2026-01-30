@@ -210,7 +210,7 @@ function solve_parameter_problem(::StaticVector{0}, poly::Polygon{N}) where {N}
     θ₀ = y_to_θ(zeros(N - 1))
     f = SchwarzChristoffel(θ₀, poly.β)
     sc_fix!(f, θ₀, k, poly.w[k])
-    sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
+    sc_test_ok(f, poly.w) || error("parameter_problem with 0 free parameters failed")
     (nothing, f)
 end
 
@@ -219,10 +219,22 @@ function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
     # @show idxs
     f = SchwarzChristoffel(prevertices(x₀, poly.s, idxs.Δ), poly.β)
     # solve
-    sol = nlsolve((F, x) -> cost_function!(F, x, f, poly, idxs), x₀; ftol = 1e-10)
+    sol = nlsolve(
+        (F, x) -> cost_function!(F, x, f, poly, idxs),
+        x₀;
+        ftol = 1e-10,
+        iterations = 200,
+    )
     # apply solution
     sc_fix!(f, prevertices(sol.zero, poly.s, idxs.Δ), idxs.kN, poly.w[idxs.kN])
-    sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
+    if !sc_test_ok(f, poly.w)
+        # This should not happen and could be due to an error in the cost function
+        # or the left-turn angle information.
+        converged(sol) && error("parameter_problem failed although nlsolve converged")
+        # DomainErrors indicate an error that could be recovered by choosing different
+        # initial parameters.
+        throw(DomainError("parameter_problem failed; worth re-trying"))
+    end
     (sol, f)
 end
 
@@ -234,12 +246,16 @@ function sc_parameter_problem(poly::Polygon{N}; retries = 10) where {N}
         num_tries += 1
         try
             return solve_parameter_problem(params, poly)
-        catch DomainError
-            num_tries > retries && break
-            @warn "Re-attempting parameter problem with random starting point"
-            # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
-            for i ∈ eachindex(params)
-                params[i] = randn()
+        catch e
+            if e isa DomainError
+                num_tries > retries && break
+                @warn "Re-attempting parameter problem with random starting point"
+                # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
+                for i ∈ eachindex(params)
+                    params[i] = randn()
+                end
+            else
+                rethrow(e)
             end
         end
     end
