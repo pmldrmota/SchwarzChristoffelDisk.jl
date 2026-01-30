@@ -218,25 +218,8 @@ function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
     idxs = ProblemIndices(poly)
     # @show idxs
     f = SchwarzChristoffel(prevertices(x₀, poly.s, idxs.Δ), poly.β)
-
     # solve
-    retries = 10
-    sol = nothing
-    while retries > 0
-        try
-            sol = nlsolve((F, x) -> cost_function!(F, x, f, poly, idxs), x₀; ftol = 1e-10)
-            break
-        catch DomainError
-            @warn "Re-attempting nlsolve with random starting point"
-            retries -= 1
-            # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
-            for i ∈ eachindex(x₀)
-                x₀[i] = randn()
-            end
-        end
-    end
-    isnothing(sol) && error("Failed to solve parameter problem")
-
+    sol = nlsolve((F, x) -> cost_function!(F, x, f, poly, idxs), x₀; ftol = 1e-10)
     # apply solution
     sc_fix!(f, prevertices(sol.zero, poly.s, idxs.Δ), idxs.kN, poly.w[idxs.kN])
     sc_test_ok(f, poly.w) || @warn "parameter_problem failed"
@@ -244,5 +227,34 @@ function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
 end
 
 # Dispatch on number of free parameters
-sc_parameter_problem(poly::Polygon{N}) where {N} =
-    solve_parameter_problem(free_params(poly), poly)
+function sc_parameter_problem(poly::Polygon{N}; retries = 10) where {N}
+    params = free_params(poly)
+    num_tries = 0
+    while num_tries ≤ retries
+        num_tries += 1
+        try
+            return solve_parameter_problem(params, poly)
+        catch DomainError
+            num_tries > retries && break
+            @warn "Re-attempting parameter problem with random starting point"
+            # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
+            for i ∈ eachindex(params)
+                params[i] = randn()
+            end
+        end
+    end
+    error("Failed to solve parameter problem")
+end
+
+
+"""
+Should try another solver library
+
+using NonlinearSolve
+# Define the system: f(u) = 0
+f(u, p) = u .* u .- 2  # Example: u² = 2
+u0 = [1.0, 1.0]         # Initial guess
+prob = NonlinearProblem(f, u0)
+sol = solve(prob, NewtonRaphson())
+println(sol.u)
+"""
