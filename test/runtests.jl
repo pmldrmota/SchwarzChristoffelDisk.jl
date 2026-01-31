@@ -435,6 +435,7 @@ const ϕ = acos(1/κ)/π
                 Polygon(SA[1.0im, -1-2im, 1-2im]),
                 Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25)),
                 Polygon(SA[Inf, -1-1im], BilateralSymmetry{1}(1im), Dict(2 => 0.25)),
+                Polygon(SA[1-1im, 2, 1, 2, 2im], BilateralSymmetry{1}(1im)),
             ])
         end
         @testset "P=2" begin

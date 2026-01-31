@@ -19,7 +19,7 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
         isnothing(double_∞) || throw(ArgumentError("found consecutive infinities"))
         for (i, (wi, βi)) ∈ enumerate(zip(w, β))
             if isfinite(wi)
-                (-1 ≤ βi < 1) || throw(ArgumentError("β[$i] ∉ [-1, 1) at node $i ($wi)"))
+                (-1 ≤ βi < 1) || throw(ArgumentError("β[$i]=$βi ∉ [-1, 1) at node $i ($wi)"))
             else
                 (1 ≤ βi ≤ 3) || throw(ArgumentError("β[$i] ∉ [1, 3] at node $i (∞)"))
             end
@@ -43,6 +43,10 @@ function calc_β_ℓ(w::StaticVector{N}, β_lu::Dict{Int,<:Number}) where {N}
         pre = wi - w[mod1(i - 1, N)]
         β[i] = if isfinite(pre) && isfinite(post)
             α = angle(pre' * post) / π
+            if α ≈ 1
+                # need to enforce a left-turn at 180° corners
+                α = -1
+            end
             if haskey(β_lu, i) && !isapprox(β_lu[i], α; rtol = 1e-4, atol = 1e-5)
                 @warn "β_lu[$i]=$(β_lu[i]) inconsistent with α=$α; using α"
             end
