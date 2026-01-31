@@ -259,7 +259,8 @@ function sc_parameter_problem(poly::Polygon{N}; retries = 10) where {N}
             end
         end
     end
-    error("Failed to solve parameter problem")
+    # is_problematic = any(i -> isfinite(poly.w[i]) && poly.β[i] ≈ -1, 1:N)
+    error("Failed to solve parameter problem. Try to pass as NoSymmetry?")
 end
 
 
