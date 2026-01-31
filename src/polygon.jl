@@ -187,6 +187,8 @@ For P=1 and P=2 we search for patterns
      l.r
      l∞r
     l∞.∞r
+
+Limitations: does not work for polygons which have multiple points on the symmetry axis.
 """
 first_independent_vertex(::Polygon) = 1
 function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
