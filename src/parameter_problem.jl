@@ -163,7 +163,7 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
     num_independent = num_independent_vertices(poly)
 
     # start out with the minimal number of k_fix (one per segment)
-    k_fix = (findall_circ(isinf, poly.w, idx₁+1) .+ 1)[1:min_num_fix]
+    k_fix = mod1.(findall_circ(isinf, poly.w, idx₁+1)[1:min_num_fix] .+ 1, N)
     # start out with the maximum number of k_len in the symmetry base
     k_len = findall_circ(isfinite, poly.ℓ, idx₁, num_independent)
     # if there are not enough k_len in the symmetry base, add k_fix
