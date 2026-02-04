@@ -1,16 +1,16 @@
-export Polygon, first_independent_vertex, num_independent_vertices
+export Polygon, first_independent_vertex, num_independent_vertices, remove_symmetry
 
 using StaticArrays
 
 struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
     w::SVector{N,W}  # vertices w.r.t. centre of mass
-    s::S
+    s::PolygonSymmetry{S}
     β::SVector{N,F}  # left-turn angles
     ℓ::SVector{N,G}  # length of edges [i,i+1]
 
     function Polygon(
         w::StaticVector{N},
-        s::S,
+        s::PolygonSymmetry{S},
         β::StaticVector{N},
         ℓ::StaticVector{N},
     ) where {N,S}
@@ -116,7 +116,7 @@ function Polygon(
             throw(ArgumentError("missing $nd left-turn angles"))
         end
     end
-    Polygon(w, s, β, ℓ)
+    Polygon(w, PolygonSymmetry(s, 1), β, ℓ)
 end
 
 """
@@ -153,10 +153,10 @@ end
 
 function Polygon(
     w_base::SVector{B,W},
-    symmetry::DihedralSymmetry{R,P},
+    s::DihedralSymmetry{R,P},
     β_lu::Dict{Int,<:Number} = Dict{Int,Float64}(),
 ) where {B,W,R,P}
-    w_rotbase = make_mirror!(w_base, β_lu, symmetry)
+    w_rotbase = make_mirror!(w_base, β_lu, s)
     w = make_rotation!(w_rotbase, β_lu, CyclicSymmetry{R}())
 
     (β, ℓ) = calc_β_ℓ(w, β_lu)
@@ -171,59 +171,20 @@ function Polygon(
             throw(ArgumentError("missing left-turn angles"))
         end
     end
-    Polygon(w, symmetry, β, ℓ)
+    ps = classify_symmetry(w, β, ℓ)
+    ps.symmetry == s ||
+        throw(ArgumentError("Symmetry mismatch; inferred $(ps.symmetry) from β and ℓ"))
+    Polygon(w, ps, β, ℓ)
 end
 
-num_independent_vertices(N, ::CyclicSymmetry{R}) where {R} = N ÷ R
-num_independent_vertices(N, ::DihedralSymmetry{R,P}) where {R,P} = P + (N ÷ R - P) ÷ 2
-num_independent_vertices(poly::Polygon{N}) where {N} = num_independent_vertices(N, poly.s)
-
-"""First independent vertex
-
-For P=0 we search for the finite vertices whose edge is divided by the axis.
-pattern: lr
-
-For P=1 and P=2 we search for patterns
-     l.r
-     l∞r
-    l∞.∞r
-
-Limitations: does not work for polygons which have multiple points on the symmetry axis.
-"""
-first_independent_vertex(::Polygon) = 1
-function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R}}) where {N,R}
-    axes = symmetry_axes(poly.s)
-    findfirst(
-        i -> begin
-            w = poly.w[i]
-            if isinf(w)
-                w₋ = poly.w[mod1(i - 1, N)]
-                w₊ = poly.w[mod1(i + 1, N)]
-                any(ax -> which_side(ax, w₋) * which_side(ax, w₊) < 0, axes)
-            else
-                any(ax -> is_on(ax, w), axes)
-            end
-        end,
-        1:N,
-    )
-end
-function first_independent_vertex(poly::Polygon{N,<:DihedralSymmetry{R,0}}) where {N,R}
-    axes = symmetry_axes(poly.s)
-    findfirst(i -> begin
-        w₋ = poly.w[mod1(i - 1, N)]
-        w = poly.w[i]
-        if isinf(w₋) || isinf(w)
-            false
-        else
-            any(ax -> which_side(ax, w₋) * which_side(ax, w) < 0, axes)
-        end
-    end, 1:N)
-end
+first_independent_vertex(poly::Polygon) = poly.s.first_independent_vertex
+num_independent_vertices(poly::Polygon{N}) where {N} =
+    num_independent_vertices(N, poly.s.symmetry)
 
 num_infs_on_axes(poly::Polygon) = 0
 # Number of points on axes minus number of finite points on axis.
 num_infs_on_axes(poly::Polygon{<:Any,<:BilateralSymmetry{P}}) where {P} =
-    P - count(v -> isfinite(v) && is_on(poly.s.axis, v), poly.w)
+    P - count(v -> isfinite(v) && is_on(get_axis(poly.s), v), poly.w)
 function num_infs_on_axes(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
     # need only look at the first two axes
     axes = symmetry_axes(poly.s)

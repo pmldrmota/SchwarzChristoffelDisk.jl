@@ -1,4 +1,10 @@
-export NoSymmetry, CyclicSymmetry, BilateralSymmetry, DihedralSymmetry, classify_symmetry
+export NoSymmetry,
+    CyclicSymmetry,
+    BilateralSymmetry,
+    DihedralSymmetry,
+    PolygonSymmetry,
+    classify_symmetry,
+    get_axis
 
 using StaticArrays
 import Base
@@ -42,6 +48,19 @@ If `P > 0`, then `axis` is assumed to coincide with a vertex.
 const BilateralSymmetry{P,T} = DihedralSymmetry{1,P,T}
 BilateralSymmetry{P}(axis) where {P} = DihedralSymmetry{1,P}(axis)
 
+"""Wrapper for symmetry of a Polygon
+
+The extra element `first_independent_vertex` stores the index
+"""
+struct PolygonSymmetry{S<:AbstractSymmetry}
+    symmetry::S
+    first_independent_vertex::Int
+end
+
+"Getter functions"
+get_axis(s::DihedralSymmetry) = s.axis
+get_axis(ps::PolygonSymmetry{<:DihedralSymmetry}) = ps.symmetry.axis
+
 "Helper function to determine on which side of the axis a point is"
 function which_side(axis, point)
     u = imag(axis' * point)
@@ -56,13 +75,19 @@ Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
 "List of all symmetry axes for a DihedralSymmetry"
 symmetry_axes(sym::DihedralSymmetry{R}) where {R} =
     SVector{R}(cispi(k // R) * sym.axis for k ∈ 0:(R-1))
+symmetry_axes(psym::PolygonSymmetry) = symmetry_axes(psym.symmetry)
 
+"Number of independent vertices of N-vertex polygon of typed symmetry"
+num_independent_vertices(N, ::CyclicSymmetry{R}) where {R} = N ÷ R
+num_independent_vertices(N, ::DihedralSymmetry{R,P}) where {R,P} = P + (N ÷ R - P) ÷ 2
 
 """Classify the symmetry group of a polygon
 
 :param w: vertices of the polygon
 :param β: left-turn angles at the nodes of the polygon
-:returns: instance of a subtype of AbstractSymmetry
+:param ℓ: edge lengths of the polygon
+
+:returns: instance of PolygonSymmetry
 """
 function classify_symmetry(
     w::StaticVector{N},
@@ -92,6 +117,7 @@ function classify_symmetry(
     if has_mirror
         wc(i) = w[mod1(i, N)]
         circular_average(a, b) = sqrt(a * b / (abs(a) * abs(b)))
+        first_indep(refl) = mod1(1 - cld(refl - 1, 2), N)
 
         axis(refl) =
             if iseven(refl)
@@ -110,19 +136,21 @@ function classify_symmetry(
             refl₂ = findnext(m -> congruent_circshift(L, M, m), 1:N, refl₁ + 1)
             points_on_axes = iseven(refl₁) + iseven(refl₂)
             # report the axis which contains the point
-            DihedralSymmetry{rot_order,points_on_axes}(axis(iseven(refl₁) ? refl₁ : refl₂))
+            refl = iseven(refl₁) ? refl₁ : refl₂
+            s = DihedralSymmetry{rot_order,points_on_axes}(axis(refl))
+            PolygonSymmetry(s, first_indep(refl))
         else
             # With 1 mirror axis only, a polygon with an odd number of vertices
             # must have exactly 1 vertex on the axis. Otherwise, there are either
             # 0 or 2 vertices on the axis.
             points_on_axes = isodd(N) ? 1 : (iseven(refl₁) ? 2 : 0)
-            BilateralSymmetry{points_on_axes}(axis(refl₁))
+            s = BilateralSymmetry{points_on_axes}(axis(refl₁))
+            # report the index which is on the axis
+            refl = isodd(N) && isodd(refl₁) ? refl₁ + N : refl₁
+            PolygonSymmetry(s, first_indep(refl))
         end
     else
-        if has_rotation
-            CyclicSymmetry{rot_order}()
-        else
-            NoSymmetry()
-        end
+        s = CyclicSymmetry{rot_order}()
+        PolygonSymmetry(s, 1)
     end
 end

@@ -188,7 +188,7 @@ function ProblemIndices(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
 end
 
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
-    y = prevertices(x, poly.s, idxs.Δ)
+    y = prevertices(x, poly.s.symmetry, idxs.Δ)
     any(isnan, y) && throw(DomainError("NaN encountered in cost function"))
     sc_fix!(f, y, idxs.kN, poly.w[idxs.kN])
 
@@ -217,7 +217,7 @@ end
 function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
     idxs = ProblemIndices(poly)
     # @show idxs
-    f = SchwarzChristoffel(prevertices(x₀, poly.s, idxs.Δ), poly.β)
+    f = SchwarzChristoffel(prevertices(x₀, poly.s.symmetry, idxs.Δ), poly.β)
     # solve
     sol = nlsolve(
         (F, x) -> cost_function!(F, x, f, poly, idxs),
@@ -226,7 +226,7 @@ function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
         iterations = 200,
     )
     # apply solution
-    sc_fix!(f, prevertices(sol.zero, poly.s, idxs.Δ), idxs.kN, poly.w[idxs.kN])
+    sc_fix!(f, prevertices(sol.zero, poly.s.symmetry, idxs.Δ), idxs.kN, poly.w[idxs.kN])
     if !sc_test_ok(f, poly.w)
         # This should not happen and could be due to an error in the cost function
         # or the left-turn angle information.
