@@ -51,7 +51,7 @@ is_on(axis, point) = which_side(axis, point) |> iszero
 
 "Equality check taking into account symmetric transformations"
 Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
-    any(i -> is_on(a.axis, cispi(2i // R) * b.axis), 1:R)
+    any(i -> is_on(a.axis, cispi(i // R) * b.axis), 1:R)
 
 "List of all symmetry axes for a DihedralSymmetry"
 symmetry_axes(sym::DihedralSymmetry{R}) where {R} =
