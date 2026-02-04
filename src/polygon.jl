@@ -231,3 +231,6 @@ function num_infs_on_axes(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P
     finite_on_second = any(v -> isfinite(v) && is_on(axes[2], v), poly.w)
     P - finite_on_first - finite_on_second
 end
+
+remove_symmetry(poly::Polygon) =
+    Polygon(poly.w, PolygonSymmetry(NoSymmetry(), 1), poly.β, poly.ℓ)
