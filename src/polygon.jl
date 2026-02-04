@@ -19,7 +19,8 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
         isnothing(double_∞) || throw(ArgumentError("found consecutive infinities"))
         for (i, (wi, βi)) ∈ enumerate(zip(w, β))
             if isfinite(wi)
-                (-1 ≤ βi < 1) || throw(ArgumentError("β[$i]=$βi ∉ [-1, 1) at node $i ($wi)"))
+                (-1 ≤ βi < 1) ||
+                    throw(ArgumentError("β[$i]=$βi ∉ [-1, 1) at node $i ($wi)"))
             else
                 (1 ≤ βi ≤ 3) || throw(ArgumentError("β[$i] ∉ [1, 3] at node $i (∞)"))
             end
