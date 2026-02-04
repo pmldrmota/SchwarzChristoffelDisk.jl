@@ -591,9 +591,14 @@ end
                     Dict(2 => -0.25),
                 ),
                 Polygon(
-                    SA[Inf, 2+1im, 1+2im, Inf],
+                    SA[Inf, 2+1im],
+                    DihedralSymmetry{4,1}(1+1im),
+                    Dict(1 => 1, 2 => -0.25),
+                ),
+                Polygon(
+                    SA[Inf, 1+1im, 1+2im, Inf],
                     DihedralSymmetry{2,2}(1im),
-                    Dict(1 => 1, 2 => -0.25, 3 => -0.25, 4 => 1),
+                    Dict(1 => 1, 2 => -0.5, 3 => -0.25, 4 => 1.5),
                 ),
                 Polygon(
                     SA[Inf, 3+1im, 2+2im, 1+2im, Inf],
