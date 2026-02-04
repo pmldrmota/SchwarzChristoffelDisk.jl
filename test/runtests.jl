@@ -349,8 +349,16 @@ end
                     SVector{N}(ntuple(i -> poly.β[mod1(i - k, N)], N)),
                     SVector{N}(ntuple(i -> poly.ℓ[mod1(i - k, N)], N)),
                 )
-                (_, f) = sc_parameter_problem(poly_shifted)
-                @test sc_test_ok(f, poly_shifted.w)
+                f = nothing
+                @test try
+                    (_, f) = sc_parameter_problem(poly_shifted)
+                    true
+                catch
+                    false
+                end
+                if !isnothing(f)
+                    @test sc_test_ok(f, poly_shifted.w)
+                end
             end
         end
     end
