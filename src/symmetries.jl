@@ -72,7 +72,13 @@ function classify_symmetry(
     # want to preserve angle information on infinite vertices
     # replace all infinite edges with a unique finite length
     my_inf = 1 + sum(filter(isfinite, ℓ))  # ∉ ℓ
-    ℓ = SVector(replace(x -> isinf(x) ? my_inf : x, ℓ))
+    ℓ = [
+        if isinf(ℓ[i])
+            my_inf + abs2(isinf(w[i]) ? w[mod1(i+1,N)] : w[i])
+        else
+            ℓ[i]
+        end for i ∈ eachindex(ℓ)
+    ]
     L = SVector(ℓ .* cispi.(β))
     M = SVector(ℓ .* cispi.(circshift(β, -1)) |> reverse)
 
