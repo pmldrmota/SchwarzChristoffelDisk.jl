@@ -1,6 +1,6 @@
 export sc_parameter_problem
 
-using NLsolve, StaticArrays
+using NLsolve, StaticArrays, Random
 
 """Convert `y` to `θ` such that `θ` is sorted
 
@@ -251,9 +251,7 @@ function sc_parameter_problem(poly::Polygon{N}; retries = 10) where {N}
                 num_tries > retries && break
                 @warn "Re-attempting parameter problem with random starting point"
                 # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
-                for i ∈ eachindex(params)
-                    params[i] = randn()
-                end
+                randn!(params)
             else
                 rethrow(e)
             end
