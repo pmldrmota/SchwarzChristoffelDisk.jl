@@ -182,16 +182,15 @@ first_independent_vertex(poly::Polygon) = poly.s.first_independent_vertex
 num_independent_vertices(poly::Polygon{N}) where {N} =
     num_independent_vertices(N, poly.s.symmetry)
 
+# num_infs_on_axes defined as the equivalent of P but counting only
+# finite boundary points within the set of independent vertices.
 num_infs_on_axes(poly::Polygon) = 0
-# Number of points on axes minus number of finite points on axis.
-num_infs_on_axes(poly::Polygon{<:Any,<:BilateralSymmetry{P}}) where {P} =
-    P - count(v -> isfinite(v) && is_on(get_axis(poly.s), v), poly.w)
-function num_infs_on_axes(poly::Polygon{N,<:DihedralSymmetry{R,P}}) where {N,R,P}
-    # need only look at the first two axes
-    axes = symmetry_axes(poly.s)
-    finite_on_first = any(v -> isfinite(v) && is_on(axes[1], v), poly.w)
-    finite_on_second = any(v -> isfinite(v) && is_on(axes[2], v), poly.w)
-    P - finite_on_first - finite_on_second
+num_infs_on_axes(poly::Polygon{<:Any,<:DihedralSymmetry{<:Any,1}}) =
+    Int(isinf(poly.w[first_independent_vertex(poly)]))
+function num_infs_on_axes(poly::Polygon{N,<:DihedralSymmetry{<:Any,2}}) where {N}
+    idx₁ = first_independent_vertex(poly)
+    idx₂ = mod1(idx₁ + num_independent_vertices(poly) - 1, N)
+    isinf(poly.w[idx₁]) + isinf(poly.w[idx₂])
 end
 
 remove_symmetry(poly::Polygon) =
