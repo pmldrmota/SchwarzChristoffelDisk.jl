@@ -70,6 +70,7 @@ end
                 @test poly.s.symmetry isa NoSymmetry
                 @test poly.s == classify_symmetry(poly)
                 @test poly.s.first_independent_vertex == 1
+                @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
             end
         end
         @testset "infinite" begin
@@ -81,6 +82,7 @@ end
                 @test poly.s.symmetry isa NoSymmetry
                 @test poly.s == classify_symmetry(poly)
                 @test poly.s.first_independent_vertex == 1
+                @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
             end
         end
     end
@@ -93,6 +95,7 @@ end
                 @test poly.s.symmetry isa CyclicSymmetry{2}
                 @test poly.s == classify_symmetry(poly)
                 @test poly.s.first_independent_vertex == 1
+                @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
             end
         end
         @testset "infinite" begin
@@ -106,6 +109,7 @@ end
                 @test poly.s.symmetry isa CyclicSymmetry{2}
                 @test poly.s == classify_symmetry(poly)
                 @test poly.s.first_independent_vertex == 1
+                @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
             end
         end
     end
@@ -119,6 +123,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{0}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 3]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=1" begin
@@ -128,6 +133,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{1}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 3]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=2" begin
@@ -137,6 +143,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{2}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 3]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
         end
@@ -153,6 +160,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{0}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 4]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=1 (infinity not on axis)" begin
@@ -166,6 +174,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{1}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex == 1
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=1 (infinity on axis)" begin
@@ -176,6 +185,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{1}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex == 1
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 1
                 end
             end
             @testset "P=2 (one infinity on axis)" begin
@@ -189,6 +199,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{2}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 3]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 1
                 end
             end
             @testset "P=2 (both infinities on axis)" begin
@@ -202,6 +213,7 @@ end
                     @test poly.s.symmetry isa BilateralSymmetry{2}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 4]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 2
                 end
             end
         end
@@ -215,6 +227,7 @@ end
                     @test all(poly.ℓ .== [1, 2, 1, 2])
                     @test poly.s.symmetry isa DihedralSymmetry{2,0}
                     @test poly.s == classify_symmetry(poly)
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=1" begin
@@ -226,6 +239,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,1}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 2, 4, 5]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=2" begin
@@ -238,6 +252,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{4,2}
                     @test poly.s == classify_symmetry(poly)
                     @test isodd(poly.s.first_independent_vertex)
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
                 @testset let poly =
                         Polygon(SA[2, 1+0.5im, 2.5im], DihedralSymmetry{2,2}(2im))
@@ -248,6 +263,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
                     @test isodd(poly.s.first_independent_vertex)
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
         end
@@ -265,6 +281,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,0}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 4, 7, 10]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=1 (infinity on axis)" begin
@@ -278,6 +295,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,1}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 2, 4, 5]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 1
                 end
             end
             @testset "P=2 (infinities not on axes)" begin
@@ -293,6 +311,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 4, 7, 10]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
             end
             @testset "P=2 (one infinity on axis)" begin
@@ -308,6 +327,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
                     @test isodd(poly.s.first_independent_vertex)
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 1
                 end
             end
             @testset "P=2 (both infinities on axes)" begin
@@ -323,6 +343,7 @@ end
                     @test poly.s.symmetry isa DihedralSymmetry{2,2}
                     @test poly.s == classify_symmetry(poly)
                     @test poly.s.first_independent_vertex ∈ [1, 4, 7, 10]
+                    @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 2
                 end
             end
         end
