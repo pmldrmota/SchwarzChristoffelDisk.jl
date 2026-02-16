@@ -122,8 +122,13 @@ function ProblemIndices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
     num_len = num_free - 2 * num_fix
 
     if num_∞_base == 0
-        # standard case: fix one edge with kN and k_fix, and rest with k_len
-        return ProblemIndices{1,num_len}(0, N, SA[1], 1:num_len)
+        # bounded case: fix one edge with kN and k_fix, and rest with k_len
+        # have to make sure that β[kN-1] ≠ -1
+        kN_1 = something(findfirst(>(-1), poly.β), N-1)
+        kN = mod1(kN_1 + 1, N)
+        k_fix = SA[mod1(kN + 1, N)]
+        k_len = [mod1(kN + i, N) for i=1:num_len]
+        return ProblemIndices{1,num_len}(0, kN, k_fix, k_len)
     end
 
     kN = findfirst(isfinite, poly.ℓ)
