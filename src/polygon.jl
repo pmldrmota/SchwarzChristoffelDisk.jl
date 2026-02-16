@@ -120,11 +120,20 @@ function Polygon(
     Polygon(w, PolygonSymmetry(s, 1), β, ℓ)
 end
 
-"""
+""" make_mirror!
+
 Assumes that the mirror image continues in the same order as the base,
 i.e., the last vertex in the base is connected to the first vertex in the
 image.
 """
+# Is [begin] or [end] on the symmetry axis?
+# There cannot be 2 Infs next to each other left and right of the axis,
+# therefore if there is an Inf at the boundary, it has to be on the axis.
+mirror_range(::SVector{B}, ::DihedralSymmetry{<:Any,0}) where {B} = B:-1:1
+mirror_range(::SVector{B}, ::DihedralSymmetry{<:Any,2}) where {B} = (B-1):-1:2
+mirror_range(w::SVector{B}, s::DihedralSymmetry{<:Any,1}) where {B} =
+    is_on(s.axis, w[begin]) || isinf(w[begin]) ? (B:-1:2) : ((B-1):-1:1)
+
 function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where {B,P}
     normalised_axis = s.axis / abs(s.axis)
     mirror = map(point -> if isinf(point)
@@ -132,20 +141,7 @@ function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where 
     else
         normalised_axis * conj(normalised_axis' * point)
     end, w)
-    # Is [begin] or [end] on the symmetry axis?
-    # There cannot be 2 Infs next to each other left and right of the axis,
-    # therefore if there is an Inf at the boundary, it has to be on the axis.
-    rng = if P == 0
-        B:-1:1
-    elseif P == 1
-        if is_on(s.axis, w[begin]) || isinf(w[begin])
-            B:-1:2
-        else
-            (B-1):-1:1
-        end
-    elseif P == 2
-        (B-1):-1:2
-    end
+    rng = mirror_range(w, s)
     for (k, β) ∈ pairs(β_lu)
         β_lu[1+B+rng.start-k] = β
     end
