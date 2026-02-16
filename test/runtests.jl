@@ -448,6 +448,7 @@ end
                 CyclicSymmetry{4}(),
                 Dict(1 => -0.25, 4 => -0.25),
             ),
+            Polygon(SA[cispi(-0.1), 1, 0.4, 1], CyclicSymmetry{4}()),
         ])
     end
 
@@ -468,6 +469,7 @@ end
                 Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25)),
                 Polygon(SA[Inf, -1-1im], BilateralSymmetry{1}(1im), Dict(2 => 0.25)),
                 Polygon(SA[1-1im, 2, 1, 2, 2im], BilateralSymmetry{1}(1im)),
+                Polygon(SA[-1-1im, cispi(-0.1), 1, 0.4], BilateralSymmetry{1}(1)),
             ])
         end
         @testset "P=2" begin
