@@ -72,6 +72,8 @@ end
                 @test poly.s.first_independent_vertex == 1
                 @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
             end
+            # check constructor with heap-allocated vector
+            @test !isnothing(Polygon([0, 1, 1+1im, 2im]))
         end
         @testset "infinite" begin
             @test_throws ArgumentError Polygon(SA[0, 1, 1+1im, Inf, 2im])
