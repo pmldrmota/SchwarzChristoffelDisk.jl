@@ -70,24 +70,16 @@ end
 Use `inverse()` to get the Taylor series of the inverse transformation.
 """
 function sc_taylor_series(f, zv, n = 3)
-    if n == 0
-        return Taylor1([0])
-    end
+    n == 0 && return Taylor1([0])
 
     ∂₁ = sc_first_derivative(f, zv)
-    if n == 1
-        return Taylor1([0, ∂₁])
-    end
+    n == 1 && return Taylor1([0, ∂₁])
 
     ∂₂ = sc_second_derivative(f, zv, ∂₁)
-    if n == 2
-        return Taylor1([0, ∂₁, ∂₂ / 2])
-    end
+    n == 2 && return Taylor1([0, ∂₁, ∂₂ / 2])
 
     ∂₃ = sc_third_derivative(f, zv, ∂₁, ∂₂)
-    if n == 3
-        return Taylor1([0, ∂₁, ∂₂ / 2, ∂₃ / 6])
-    end
+    n == 3 && return Taylor1([0, ∂₁, ∂₂ / 2, ∂₃ / 6])
 
-    throw("$n-th order Taylor series not implemented")
+    throw(ArgumentError("$n-th order Taylor series not implemented"))
 end

@@ -127,7 +127,7 @@ function ProblemIndices(poly::Polygon{N,CyclicSymmetry{R}}) where {N,R}
         kN_1 = something(findfirst(>(-1), poly.β), N-1)
         kN = mod1(kN_1 + 1, N)
         k_fix = SA[mod1(kN + 1, N)]
-        k_len = [mod1(kN + i, N) for i=1:num_len]
+        k_len = [mod1(kN + i, N) for i = 1:num_len]
         return ProblemIndices{1,num_len}(0, kN, k_fix, k_len)
     end
 
@@ -209,7 +209,7 @@ function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
     end
 end
 
-function solve_parameter_problem(::StaticVector{0}, poly::Polygon{N}) where {N}
+function solve_parameter_problem(::StaticVector{0}, poly::Polygon{N}; kwargs...) where {N}
     # trivial case does not require NLsolve
     k = findfirst(isfinite, poly.w)
     θ₀ = y_to_θ(zeros(N - 1))
@@ -219,7 +219,12 @@ function solve_parameter_problem(::StaticVector{0}, poly::Polygon{N}) where {N}
     (nothing, f)
 end
 
-function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
+function solve_parameter_problem(
+    x₀::StaticVector{F},
+    poly;
+    tol = 1e-10,
+    maxiter = 200,
+) where {F}
     idxs = ProblemIndices(poly)
     # @show idxs
     f = SchwarzChristoffel(prevertices(x₀, poly.s.symmetry, idxs.Δ), poly.β)
@@ -227,8 +232,8 @@ function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
     sol = nlsolve(
         (F, x) -> cost_function!(F, x, f, poly, idxs),
         x₀;
-        ftol = 1e-10,
-        iterations = 200,
+        ftol = tol,
+        iterations = maxiter,
     )
     # apply solution
     sc_fix!(f, prevertices(sol.zero, poly.s.symmetry, idxs.Δ), idxs.kN, poly.w[idxs.kN])
@@ -244,13 +249,13 @@ function solve_parameter_problem(x₀::StaticVector{F}, poly) where {F}
 end
 
 # Dispatch on number of free parameters
-function sc_parameter_problem(poly::Polygon{N}; retries = 10) where {N}
+function sc_parameter_problem(poly::Polygon{N}; retries = 10, kwargs...) where {N}
     params = free_params(poly)
     num_tries = 0
     while num_tries ≤ retries
         num_tries += 1
         try
-            return solve_parameter_problem(params, poly)
+            return solve_parameter_problem(params, poly; kwargs...)
         catch e
             if e isa DomainError
                 num_tries > retries && break
@@ -262,7 +267,6 @@ function sc_parameter_problem(poly::Polygon{N}; retries = 10) where {N}
             end
         end
     end
-    # is_problematic = any(i -> isfinite(poly.w[i]) && poly.β[i] ≈ -1, 1:N)
     error("Failed to solve parameter problem. Try to pass as NoSymmetry?")
 end
 

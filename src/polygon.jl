@@ -1,4 +1,4 @@
-export Polygon, first_independent_vertex, num_independent_vertices, remove_symmetry
+export Polygon, remove_symmetry
 
 using StaticArrays
 
@@ -63,8 +63,8 @@ function calc_β_ℓ(w::StaticVector{N}, β_lu::Dict{Int,<:Number}) where {N}
 end
 
 "Construct Polygon and infer symmetry from nodes and angles"
-function Polygon(w::SVector{N}, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}()) where {N}
-    w = complex.(w)
+function Polygon(w::AbstractVector, β_lu::Dict{Int,<:Number} = Dict{Int,Float64}())
+    w = complex.(SVector{length(w)}(w...))
     (β, ℓ) = calc_β_ℓ(w, β_lu)
     num_missing = count(isnan, β)
     if num_missing > 0
@@ -99,10 +99,11 @@ make_rotation!(w::SVector, β_lu, ::NoSymmetry) = w
 
 "Construct Polygon with cyclic symmetry"
 function Polygon(
-    w_base::SVector{B},
+    w_base::AbstractVector,
     s::CyclicSymmetry{R},
     β_lu::Dict{Int,<:Number} = Dict{Int,Float64}(),
-) where {B,R}
+) where {R}
+    w_base = SVector{length(w_base)}(w_base...)
     w = make_rotation!(w_base, β_lu, s)
     # calculate left-turn angles and edge lengths for full polygon
     (β, ℓ) = calc_β_ℓ(w, β_lu)
@@ -149,10 +150,11 @@ function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where 
 end
 
 function Polygon(
-    w_base::SVector{B,W},
+    w_base::AbstractVector,
     s::DihedralSymmetry{R,P},
     β_lu::Dict{Int,<:Number} = Dict{Int,Float64}(),
-) where {B,W,R,P}
+) where {R,P}
+    w_base = SVector{length(w_base)}(w_base...)
     w_rotbase = make_mirror!(w_base, β_lu, s)
     w = make_rotation!(w_rotbase, β_lu, CyclicSymmetry{R}())
 

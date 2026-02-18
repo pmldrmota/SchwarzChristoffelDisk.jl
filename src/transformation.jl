@@ -1,4 +1,4 @@
-export SchwarzChristoffel, sc_trafo, sc_segment, sc_test_ok
+export SchwarzChristoffel, sc_trafo, sc_test_ok
 
 using StaticArrays, FastGaussQuadrature
 
@@ -28,7 +28,7 @@ end
 :param β: the turning angles of the polygon
 :param c: scaling and rotation constant
 """
-function SchwarzChristoffel(θ, β, c = one(ComplexF64))
+function SchwarzChristoffel(θ::AbstractVector, β::AbstractVector, c = one(ComplexF64))
     SchwarzChristoffel(cis.(θ), β, c, assemble_quadcache(β))
 end
 
@@ -129,7 +129,7 @@ end
 
 """Schwarz-Christoffel transformation
 """
-function sc_trafo(f, zb)
+function sc_trafo(f::SchwarzChristoffel, zb::Number)
     z = findfirst(zb ≈ zz for zz ∈ f.z)
     sc_compound_gauss_jacobi(f, 0, zb, z)
 end
@@ -138,7 +138,7 @@ end
 
 :returns: true if test passed
 """
-function sc_test_ok(f, w)
+function sc_test_ok(f::SchwarzChristoffel, w::AbstractVector)
     sum(abs2(sc_trafo(f, f.z[k]) - wk) for (k, wk) ∈ enumerate(w) if !isinf(wk)) <
     length(w)^2 * 1e-6
 end

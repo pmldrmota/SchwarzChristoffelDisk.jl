@@ -1,10 +1,4 @@
-export NoSymmetry,
-    CyclicSymmetry,
-    BilateralSymmetry,
-    DihedralSymmetry,
-    PolygonSymmetry,
-    classify_symmetry,
-    get_axis
+export NoSymmetry, CyclicSymmetry, BilateralSymmetry, DihedralSymmetry, PolygonSymmetry
 
 using StaticArrays
 import Base
@@ -99,7 +93,7 @@ function classify_symmetry(
     my_inf = 1 + sum(filter(isfinite, ℓ))  # ∉ ℓ
     ℓ = [
         if isinf(ℓ[i])
-            my_inf + abs2(isinf(w[i]) ? w[mod1(i+1,N)] : w[i])
+            my_inf + abs2(isinf(w[i]) ? w[mod1(i+1, N)] : w[i])
         else
             ℓ[i]
         end for i ∈ eachindex(ℓ)
