@@ -78,6 +78,8 @@ function Polygon(w::AbstractVector, β_lu::Dict{Int,<:Number} = Dict{Int,Float64
     s = classify_symmetry(w, β, ℓ)
     Polygon(w, s, β, ℓ)
 end
+# Variant wrapping left-turn angles from vector
+Polygon(w::AbstractVector, β::AbstractVector) = Polygon(w, Dict(1:length(β) .=> β))
 
 function make_rotation!(w_base::SVector{B}, β_lu, ::CyclicSymmetry{R}) where {B,R}
     N = B * R
