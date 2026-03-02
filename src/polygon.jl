@@ -99,7 +99,22 @@ function make_rotation!(w_base::SVector{B}, β_lu, ::CyclicSymmetry{R}) where {B
 end
 make_rotation!(w::SVector, β_lu, ::NoSymmetry) = w
 
-"Construct Polygon with cyclic symmetry"
+"""Construct Polygon with cyclic symmetry
+
+:param w_base: the minimal set of vertices required to construct
+    the polygon, in anti-clockwise order.
+:param s: instance of the symmetry, carrying the rotational order `R`
+    as type parameter. `R` is the number of times the vertices in w_base
+    are duplicated to form the final polygon.
+:param β_lu: left-turn-angle lookup table. Only values next to infinities
+    are necessary, and only indices from `w_base` need to be specified (the
+    ones following from the rotational symmetry will be inferred).
+    If there is only one infinity in `w_base`, the left-turn
+    angle at the infinite vertex does not have to be specified, but only the
+    angles adjacent to the infinity.
+
+:returns: a Polygon instance with `length(w_base) * R` vertices.
+"""
 function Polygon(
     w_base::AbstractVector,
     s::CyclicSymmetry{R},
@@ -151,11 +166,43 @@ function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where 
     SVector{2B-P}(w..., mirror[rng]...)
 end
 
+consistency_check_dihedral(a, b, s::DihedralSymmetry{<:Any,0}) =
+    (isfinite(a) && isfinite(b) && !is_on(s.axis, a) && !is_on(s.axis, b))
+
+consistency_check_dihedral(a, b, s::DihedralSymmetry{<:Any,1}) =
+    (((isinf(a) || is_on(s.axis, a)) && isfinite(b) && !is_on(s.axis, b))) ||
+    (((isinf(b) || is_on(s.axis, b)) && isfinite(a) && !is_on(s.axis, a)))
+
+consistency_check_dihedral(a, b, s::DihedralSymmetry{<:Any,2}) =
+    (isinf(a) || any(ax -> is_on(ax, a), symmetry_axes(s))) &&
+    (isinf(b) || any(ax -> is_on(ax, b), symmetry_axes(s)))
+
+consistency_check_dihedral!(w_base, s::DihedralSymmetry{<:Any,P}) where {P} =
+    consistency_check_dihedral(w_base[begin], w_base[end], s) ||
+    throw(ArgumentError("w_base inconsistent with P=$P"))
+
+"""Construct Polygon with dihedral (mirror/mirror+rotational) symmetry
+
+:param w_base: the minimal set of vertices required to construct
+    the polygon, in anti-clockwise order.
+:param s: instance of the symmetry carrying the rotational order `R` as
+    type parameter. `P` is the number of points coinciding with a symmetry axis,
+    which can be 0, 1, or 2.
+:param β_lu: left-turn-angle lookup table. Only values next to infinities
+    are necessary, and only indices from `w_base` need to be specified (the
+    ones following from symmetry will be inferred).
+    If there is only one infinity in `w_base`, the left-turn
+    angle at the infinite vertex does not have to be specified, but only the
+    angles adjacent to the infinity.
+
+:returns: a Polygon instance with `(2 * length(w_base) - P) * R` vertices.
+"""
 function Polygon(
     w_base::AbstractVector,
     s::DihedralSymmetry{R,P},
     β_lu::Dict{Int,<:Number} = Dict{Int,Float64}(),
 ) where {R,P}
+    consistency_check_dihedral!(w_base, s)
     w_base = SVector{length(w_base)}(w_base...)
     w_rotbase = make_mirror!(w_base, β_lu, s)
     w = make_rotation!(w_rotbase, β_lu, CyclicSymmetry{R}())

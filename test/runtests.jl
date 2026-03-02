@@ -119,7 +119,10 @@ end
     @testset "BilateralSymmetry" begin
         @testset "finite" begin
             @testset "P=0" begin
-                @testset let poly = Polygon(SA[-1+1im, -2], BilateralSymmetry{0}(1im))
+                w_base = SA[-1+1im, -2]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{1}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{2}(1im))
+                @testset let poly = Polygon(w_base, BilateralSymmetry{0}(1im))
                     @test all(poly.β .== [0.25, 0.75, 0.75, 0.25])
                     @test all(poly.ℓ .== [sqrt(2), 4, sqrt(2), 2])
                     @test poly.s.symmetry isa BilateralSymmetry{0}
@@ -129,7 +132,10 @@ end
                 end
             end
             @testset "P=1" begin
-                @testset let poly = Polygon(SA[1im, -1], BilateralSymmetry{1}(1im))
+                w_base = SA[1im, -1]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{0}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{2}(1im))
+                @testset let poly = Polygon(w_base, BilateralSymmetry{1}(1im))
                     @test all(poly.β .== [0.5, 0.75, 0.75])
                     @test all(poly.ℓ .== [sqrt(2), 2, sqrt(2)])
                     @test poly.s.symmetry isa BilateralSymmetry{1}
@@ -139,7 +145,10 @@ end
                 end
             end
             @testset "P=2" begin
-                @testset let poly = Polygon(SA[1im, -1, -2im], BilateralSymmetry{2}(1im))
+                w_base = SA[1im, -1, -2im]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{0}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{1}(1im))
+                @testset let poly = Polygon(w_base, BilateralSymmetry{2}(1im))
                     @test all(poly.β .== [0.5, 0.75-ϕ, 2ϕ, 0.75-ϕ])
                     @test all(poly.ℓ .== [sqrt(2), κ, κ, sqrt(2)])
                     @test poly.s.symmetry isa BilateralSymmetry{2}
@@ -152,8 +161,11 @@ end
 
         @testset "infinite" begin
             @testset "P=0" begin
+                w_base = SA[-1+1im, Inf, -2]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{1}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{2}(1im))
                 @testset let poly = Polygon(
-                        SA[-1+1im, Inf, -2],
+                        w_base,
                         BilateralSymmetry{0}(1im),
                         Dict(1 => -0.25, 3 => 0.25),
                     )
@@ -166,8 +178,11 @@ end
                 end
             end
             @testset "P=1 (infinity not on axis)" begin
+                w_base = SA[1im, Inf, -1]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{0}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{2}(1im))
                 @testset let poly = Polygon(
-                        SA[1im, Inf, -1],
+                        w_base,
                         BilateralSymmetry{1}(1im),
                         Dict(1 => -0.5, 3 => -0.25),
                     )
@@ -180,8 +195,11 @@ end
                 end
             end
             @testset "P=1 (infinity on axis)" begin
+                w_base = SA[Inf, -1]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{0}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{2}(1im))
                 @testset let poly =
-                        Polygon(SA[Inf, -1], BilateralSymmetry{1}(1im), Dict(2 => 0.25))
+                        Polygon(w_base, BilateralSymmetry{1}(1im), Dict(2 => 0.25))
                     @test all(poly.β .== [1.5, 0.25, 0.25])
                     @test all(poly.ℓ .== [Inf, 2, Inf])
                     @test poly.s.symmetry isa BilateralSymmetry{1}
@@ -191,11 +209,11 @@ end
                 end
             end
             @testset "P=2 (one infinity on axis)" begin
-                @testset let poly = Polygon(
-                        SA[1im, -1, Inf],
-                        BilateralSymmetry{2}(1im),
-                        Dict(2 => 0.25),
-                    )
+                w_base = SA[1im, -1, Inf]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{0}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{1}(1im))
+                @testset let poly =
+                        Polygon(w_base, BilateralSymmetry{2}(1im), Dict(2 => 0.25))
                     @test all(poly.β .== [0.5, 0.25, 1, 0.25])
                     @test all(poly.ℓ .== [sqrt(2), Inf, Inf, sqrt(2)])
                     @test poly.s.symmetry isa BilateralSymmetry{2}
@@ -205,8 +223,11 @@ end
                 end
             end
             @testset "P=2 (both infinities on axis)" begin
+                w_base = SA[Inf, -1+1im, -1-1im, Inf]
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{0}(1im))
+                @test_throws ArgumentError Polygon(w_base, BilateralSymmetry{1}(1im))
                 @testset let poly = Polygon(
-                        SA[Inf, -1+1im, -1-1im, Inf],
+                        w_base,
                         BilateralSymmetry{2}(1im),
                         Dict(1 => 2, 2 => -0.5, 3 => -0.25),
                     )
@@ -224,7 +245,10 @@ end
     @testset "DihedralSymmetry" begin
         @testset "finite" begin
             @testset "P=0" begin
-                @testset let poly = Polygon(SA[0.5+1im], DihedralSymmetry{2,0}(1im))
+                w_base = SA[0.5+1im]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,1}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,2}(1im))
+                @testset let poly = Polygon(w_base, DihedralSymmetry{2,0}(1im))
                     @test all(poly.β .== [0.5, 0.5, 0.5, 0.5])
                     @test all(poly.ℓ .== [1, 2, 1, 2])
                     @test poly.s.symmetry isa DihedralSymmetry{2,0}
@@ -233,7 +257,10 @@ end
                 end
             end
             @testset "P=1" begin
-                @testset let poly = Polygon(SA[1+1im, 2im], DihedralSymmetry{2,1}(1im))
+                w_base = SA[1+1im, 2im]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,2}(1im))
+                @testset let poly = Polygon(w_base, DihedralSymmetry{2,1}(1im))
                     b = [0.25, 0.5, 0.25]
                     @test all(poly.β .== [b; b])
                     l = [sqrt(2), sqrt(2), 2]
@@ -245,8 +272,10 @@ end
                 end
             end
             @testset "P=2" begin
-                @testset let poly =
-                        Polygon(SA[1+1im, 0.5+1im, 2im], DihedralSymmetry{4,2}(2im))
+                w_base = SA[1+1im, 0.5+1im, 2im]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{4,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{4,1}(1im))
+                @testset let poly = Polygon(w_base, DihedralSymmetry{4,2}(1im))
                     b = [0.5, -ϕ, 2ϕ, -ϕ]
                     @test all(poly.β .== [b; b; b; b])
                     l = [1, κ, κ, 1]
@@ -256,8 +285,10 @@ end
                     @test isodd(poly.s.first_independent_vertex)
                     @test SchwarzChristoffelDisk.num_infs_on_axes(poly) == 0
                 end
-                @testset let poly =
-                        Polygon(SA[2, 1+0.5im, 2.5im], DihedralSymmetry{2,2}(2im))
+                w_base = SA[2, 1+0.5im, 2.5im]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,1}(1im))
+                @testset let poly = Polygon(w_base, DihedralSymmetry{2,2}(1im))
                     b = [2ϕ, 0.5-2ϕ, 2ϕ, 0.5-2ϕ]
                     @test all(poly.β .≈ [b; b])
                     l = [κ/2, κ, κ, κ/2]
@@ -271,9 +302,13 @@ end
         end
         @testset "infinite" begin
             @testset "P=0" begin
+                w_base = SA[0.5+1im, Inf, 1+2im]
+                axis = -1im
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,1}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,2}(1im))
                 @testset let poly = Polygon(
-                        SA[0.5+1im, Inf, 1+2im],
-                        DihedralSymmetry{2,0}(-1im),
+                        w_base,
+                        DihedralSymmetry{2,0}(1im),
                         Dict(1 => -0.5, 2 => 1.25, 3 => -0.25),
                     )
                     b = [-0.5, 1.25, -0.25, -0.25, 1.25, -0.5]
@@ -287,11 +322,11 @@ end
                 end
             end
             @testset "P=1 (infinity on axis)" begin
-                @testset let poly = Polygon(
-                        SA[1+1im, Inf],
-                        DihedralSymmetry{2,1}(1im),
-                        Dict(1 => -0.25),
-                    )
+                w_base = SA[1+1im, Inf]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,2}(1im))
+                @testset let poly =
+                        Polygon(w_base, DihedralSymmetry{2,1}(1im), Dict(1 => -0.25))
                     @test all(poly.β .== [-0.25, 1.5, -0.25, -0.25, 1.5, -0.25])
                     @test all(poly.ℓ .== [Inf, Inf, 2, Inf, Inf, 2])
                     @test poly.s.symmetry isa DihedralSymmetry{2,1}
@@ -301,8 +336,11 @@ end
                 end
             end
             @testset "P=2 (infinities not on axes)" begin
+                w_base = SA[2, 1+1im, Inf, 2.5im]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,1}(1im))
                 @testset let poly = Polygon(
-                        SA[2, 1+1im, Inf, 2.5im],
+                        w_base,
                         DihedralSymmetry{2,2}(1im),
                         Dict(2 => -0.5, 4 => -0.9),
                     )
@@ -317,11 +355,11 @@ end
                 end
             end
             @testset "P=2 (one infinity on axis)" begin
-                @testset let poly = Polygon(
-                        SA[2, 1+0.5im, Inf],
-                        DihedralSymmetry{2,2}(2im),
-                        Dict(2 => -0.75),
-                    )
+                w_base = SA[2, 1+0.5im, Inf]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,1}(1im))
+                @testset let poly =
+                        Polygon(w_base, DihedralSymmetry{2,2}(1im), Dict(2 => -0.75))
                     b = [2ϕ, -0.75, 2.5-2ϕ, -0.75]
                     @test all(poly.β .≈ [b; b])
                     l = [κ/2, Inf, Inf, κ/2]
@@ -333,9 +371,12 @@ end
                 end
             end
             @testset "P=2 (both infinities on axes)" begin
+                w_base = SA[Inf, 2+0.5im, 1+1.5im, Inf]
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,0}(1im))
+                @test_throws ArgumentError Polygon(w_base, DihedralSymmetry{2,1}(1im))
                 @testset let poly = Polygon(
-                        SA[Inf, 2+0.5im, 1+1.5im, Inf],
-                        DihedralSymmetry{2,2}(2im),
+                        w_base,
+                        DihedralSymmetry{2,2}(1im),
                         Dict(2 => -0.5, 3 => -0.25, 4 => 1.2),
                     )
                     b = [1.3, -0.5, -0.25, 1.2, -0.25, -0.5]
