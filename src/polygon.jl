@@ -150,7 +150,7 @@ image.
 mirror_range(::SVector{B}, ::DihedralSymmetry{<:Any,0}) where {B} = B:-1:1
 mirror_range(::SVector{B}, ::DihedralSymmetry{<:Any,2}) where {B} = (B-1):-1:2
 mirror_range(w::SVector{B}, s::DihedralSymmetry{<:Any,1}) where {B} =
-    is_on(s.axis, w[begin]) || isinf(w[begin]) ? (B:-1:2) : ((B-1):-1:1)
+    isinf(w[begin]) || is_on(s.axis, w[begin]) ? (B:-1:2) : ((B-1):-1:1)
 
 function make_mirror!(w::SVector{B}, β_lu, s::DihedralSymmetry{<:Any,P}) where {B,P}
     normalised_axis = s.axis / abs(s.axis)
