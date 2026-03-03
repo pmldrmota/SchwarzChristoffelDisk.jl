@@ -27,6 +27,22 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
         end
         ∑β = sum(β)
         isapprox(∑β, 2; rtol = 1e-5) || throw(ArgumentError("wrong angles (∑β=$∑β)"))
+
+        # For polygons with more than 1 infinities, the orientation of the edges as
+        # inferred from the left-turn angles can be inconsistent with the orientation of
+        # the edges calculated directly from the vertices.
+        k = findfirst(isfinite, ℓ)  # if there are no finite edges, we can't check this.
+        if count(isinf, w) > 1 && !isnothing(k)
+            # angle of segments inferred from one finite segment and left-turn angles
+            α = angle(w[mod1(k+1, N)] - w[k])
+            segdirs = α .+ π .* circshift(cumsum(circshift(β, -k)), k)
+            # edges inferred from vertices
+            edges = [diff(w); w[begin] - w[end]]
+            incon = findall(@. isfinite(edges) && !is_on(cis(segdirs), edges; rtol = 1e-4))
+            if !isempty(incon)
+                throw(ArgumentError("Edge and left-turn angles inconsistent at $incon"))
+            end
+        end
         new{N,S,eltype(w),eltype(β),eltype(ℓ)}(SVector(w), s, SVector(β), SVector(ℓ))
     end
 end
