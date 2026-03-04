@@ -377,9 +377,9 @@ end
                 @testset let poly = Polygon(
                         w_base,
                         DihedralSymmetry{2,2}(1im),
-                        Dict(2 => -0.5, 3 => -0.25, 4 => 1.2),
+                        Dict(2 => -0.5, 3 => -0.25, 4 => 1),
                     )
-                    b = [1.3, -0.5, -0.25, 1.2, -0.25, -0.5]
+                    b = [1.5, -0.5, -0.25, 1, -0.25, -0.5]
                     @test all(poly.β .== [b; b])
                     l = [Inf, sqrt(2), Inf, Inf, sqrt(2), Inf]
                     @test all(poly.ℓ .== [l; l])
