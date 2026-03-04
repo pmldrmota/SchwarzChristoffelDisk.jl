@@ -77,6 +77,11 @@ end
         end
         @testset "infinite" begin
             @test_throws ArgumentError Polygon(SA[0, 1, 1+1im, Inf, 2im])
+            # vertices inconsistent with left-turn angles
+            @test_throws ArgumentError Polygon(
+                SA[1-0.5im, 1+0.5im, Inf, -2+1im, -2-1im, Inf],
+                SA[-0.5, -0.25 + 0.1, 1.5, -0.25, -0.5 - 0.1, 2]
+            )
             @testset let poly =
                     Polygon(SA[0, 1, 1+1im, Inf, 2im], Dict(3 => -0.25, 4 => 1.25, 5 => 0))
                 @test all(poly.β .== [0.5, 0.5, -0.25, 1.25, 0])
