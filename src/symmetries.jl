@@ -56,11 +56,11 @@ get_axis(s::DihedralSymmetry) = s.axis
 get_axis(ps::PolygonSymmetry{<:DihedralSymmetry}) = ps.symmetry.axis
 
 "Helper function to determine on which side of the axis a point is"
-function which_side(axis, point)
+function which_side(axis, point; rtol=√eps())
     u = imag(axis' * point)
-    abs(u) < abs(axis) * √eps() ? 0 : sign(u)
+    abs(u) < abs(axis) * rtol ? 0 : sign(u)
 end
-is_on(axis, point) = which_side(axis, point) |> iszero
+is_on(axis, point; kwargs...) = which_side(axis, point; kwargs...) |> iszero
 
 "Equality check taking into account symmetric transformations"
 Base.:(==)(a::DihedralSymmetry{R,P}, b::DihedralSymmetry{R,P}) where {R,P} =
