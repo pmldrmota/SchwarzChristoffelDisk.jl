@@ -14,12 +14,12 @@ end
 
 """Fix the scaling constant of the Schwarz-Christoffel transformation and set the singularities
 """
-function sc_fix!(f, θ, kN, wN)
-    f.z .= cispi.(θ)
-    # evaluate image vertices with unit constant
-    f.c = one(f.c)
+function sc_fix(f, θ, kN, wN)
+    z = cispi.(θ)
+    f = SchwarzChristoffel(z, f.β, one(eltype(z)), f.quadcache)
     # fix scaling constant such that wN is correct
-    f.c = wN / sc_trafo(f, f.z[kN])
+    f.c = wN / sc_trafo(f, z[kN])
+    return f
 end
 
 # Dispatch free parameters based on the typed symmetry.
@@ -195,7 +195,7 @@ end
 function cost_function!(F, x, f, poly, idxs::ProblemIndices{X,L}) where {X,L}
     y = prevertices(x, poly.s.symmetry, idxs.Δ)
     any(isnan, y) && throw(DomainError("NaN encountered in cost function"))
-    sc_fix!(f, y, idxs.kN, poly.w[idxs.kN])
+    f = sc_fix(f, y, idxs.kN, poly.w[idxs.kN])
 
     # fix one vertex per component - 2 real conditions each
     @inbounds for (i, k) ∈ enumerate(idxs.k_fix)
@@ -214,7 +214,7 @@ function solve_parameter_problem(::StaticVector{0}, poly::Polygon{N}; kwargs...)
     k = findfirst(isfinite, poly.w)
     θ₀ = y_to_θ(zeros(N - 1))
     f = SchwarzChristoffel(θ₀, poly.β)
-    sc_fix!(f, θ₀, k, poly.w[k])
+    f = sc_fix(f, θ₀, k, poly.w[k])
     sc_test_ok(f, poly.w) || error("parameter_problem with 0 free parameters failed")
     (nothing, f)
 end
@@ -234,9 +234,10 @@ function solve_parameter_problem(
         x₀;
         ftol = tol,
         iterations = maxiter,
+        autodiff = :forward,
     )
     # apply solution
-    sc_fix!(f, prevertices(sol.zero, poly.s.symmetry, idxs.Δ), idxs.kN, poly.w[idxs.kN])
+    f = sc_fix(f, prevertices(sol.zero, poly.s.symmetry, idxs.Δ), idxs.kN, poly.w[idxs.kN])
     if !sc_test_ok(f, poly.w)
         # This should not happen and could be due to an error in the cost function
         # or the left-turn angle information.
