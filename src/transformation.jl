@@ -130,8 +130,8 @@ end
 """Schwarz-Christoffel transformation
 """
 function sc_trafo(f::SchwarzChristoffel, zb::Number)
-    z = findfirst(zb ≈ zz for zz ∈ f.z)
-    sc_compound_gauss_jacobi(f, zero(zb), zb, z)
+    k = findfirst(zb ≈ zz for zz ∈ f.z)
+    sc_compound_gauss_jacobi(f, zero(zb), zb, k)
 end
 
 """Test whether the Schwarz-Christoffel transformation maps to the vertices `w`
