@@ -86,7 +86,7 @@ the disk enclosed by the connections from the nearest singularities to the origi
 function sc_compound_gauss_jacobi(f, z0, zb, kb)
     @assert !isnan(z0) && !isnan(zb) "sc_compound_gauss_jacobi got NaN input"
     # integrate from z0 to zb
-    integral = zero(ComplexF64)
+    integral = zero(zb)
     if zb ≈ z0
         return integral
     end
@@ -113,7 +113,7 @@ function sc_compound_gauss_jacobi(f, z0, zb, kb)
         drem = abs(z0 - zb)
     end
 
-    @assert false "sc_compound_gauss_jacobi failed at ($z0,$zb,$kb); drem = $drem"
+    throw(ErrorException("sc_compound_gauss_jacobi failed at ($z0,$zb,$kb); drem = $drem"))
 end
 
 """Integrate along segment connecting adjacent singularities `(ka, ka+1)`
@@ -122,7 +122,7 @@ function sc_segment(f, ka)
     kb = mod1(ka + 1, length(f.z))
     # Taking the midpoint doesn't seem to be accurate close to the boundary.
     # zhalf = (f.z[kb]+f.z[ka])/2
-    zhalf = 0
+    zhalf = zero(f.z[kb])
     sc_compound_gauss_jacobi(f, zhalf, f.z[kb], kb) -
     sc_compound_gauss_jacobi(f, zhalf, f.z[ka], ka)
 end
@@ -131,7 +131,7 @@ end
 """
 function sc_trafo(f::SchwarzChristoffel, zb::Number)
     z = findfirst(zb ≈ zz for zz ∈ f.z)
-    sc_compound_gauss_jacobi(f, 0, zb, z)
+    sc_compound_gauss_jacobi(f, zero(zb), zb, z)
 end
 
 """Test whether the Schwarz-Christoffel transformation maps to the vertices `w`
