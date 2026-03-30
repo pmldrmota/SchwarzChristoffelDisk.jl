@@ -2,7 +2,7 @@ export sc_first_derivative, sc_taylor_series
 
 using TaylorSeries
 
-sc_term(zk, α, zv) = (1 - zv / zk)^α
+sc_term(zk, α, zv) = (one(zv) - zv / zk)^α
 
 """Derivative of the Schwarz-Christoffel transformation
 
@@ -11,8 +11,8 @@ sc_term(zk, α, zv) = (1 - zv / zk)^α
 :param zv: source point to evaluate at
 :param k: index to skip (used for Gauss-Jacobi quadrature)
 """
-function sc_derivative(z, β, zv, k=nothing)
-    val = one(ComplexF64)
+function sc_derivative(z, β, zv, k = nothing)
+    val = one(zv)
     for (i, (zk, βk)) in enumerate(zip(z, β))
         i == k && continue
         val *= sc_term(zk, -βk, zv)
@@ -20,7 +20,7 @@ function sc_derivative(z, β, zv, k=nothing)
     val
 end
 
-"n-th derivative of `sc_term`"
+"n-th derivative of `sc_term` wrt `zv`"
 function sc_term_derivative(zk, α, zv, n)
     p = prod(α + 1 - i for i in 1:n)
     (-1 / zk)^n * sc_term(zk, α - n, zv) * p
@@ -31,7 +31,7 @@ end
 :param zv: the function argument
 :param k: index of the singularity to ignore
 """
-function sc_first_derivative(f, zv, k=nothing)
+function sc_first_derivative(f, zv, k = nothing)
     f.c * sc_derivative(f.z, f.β, zv, k)
 end
 
@@ -40,28 +40,39 @@ end
 The logarithmic derivative turns the recursive product rule into a single sum.
 """
 function log_second_derivative(f, zv)
-    mapreduce(((zk, βk),) -> sc_term_derivative(zk, -βk, zv, 1) * sc_term(zk, +βk, zv),
+    mapreduce(
+        ((zk, βk),) -> sc_term_derivative(zk, -βk, zv, 1) * sc_term(zk, +βk, zv),
         +,
         zip(f.z, f.β);
-        init=zero(ComplexF64))
+        init = zero(zv),
+    )
 end
 
 function quotient_rule(f, zv)
-    mapreduce(((zk, βk),) -> begin
+    mapreduce(
+        ((zk, βk),) -> begin
             g = sc_term(zk, +βk, zv)  # inverse denominator
             g * sc_term_derivative(zk, -βk, zv, 2) -
             (g * sc_term_derivative(zk, -βk, zv, 1))^2
         end,
-        +, zip(f.z, f.β); init=zero(ComplexF64))
+        +,
+        zip(f.z, f.β);
+        init = zero(zv),
+    )
 end
 
 """Evaluate the second derivative"""
-function sc_second_derivative(f, zv, d1=sc_first_derivative(f, zv))
+function sc_second_derivative(f, zv, d1 = sc_first_derivative(f, zv))
     d1 * log_second_derivative(f, zv)
 end
 
 """Evaluate the third derivative"""
-function sc_third_derivative(f, zv, d1=sc_first_derivative(f, zv), d2=sc_second_derivative(f, zv, d1))
+function sc_third_derivative(
+    f,
+    zv,
+    d1 = sc_first_derivative(f, zv),
+    d2 = sc_second_derivative(f, zv, d1),
+)
     d1 * quotient_rule(f, zv) + d2^2 / d1
 end
 
