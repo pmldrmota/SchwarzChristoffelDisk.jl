@@ -7,7 +7,7 @@ using NLsolve, StaticArrays, Random
 :param y: (n-1)-element array of unconstrained parameters
 """
 function y_to_θ(y)
-    y2 = cumsum([1; exp.(-cumsum(y))])
+    y2 = cumsum(vcat(one(eltype(y)), exp.(-cumsum(y))))
     t = 2 / y2[end]
     t .* y2
 end
@@ -17,7 +17,7 @@ end
 function sc_fix!(f, θ, kN, wN)
     f.z .= cispi.(θ)
     # evaluate image vertices with unit constant
-    f.c = 1
+    f.c = one(f.c)
     # fix scaling constant such that wN is correct
     f.c = wN / sc_trafo(f, f.z[kN])
 end
