@@ -32,7 +32,13 @@ struct Polygon{N,S<:AbstractSymmetry,W<:Complex,F,G}
         # inferred from the left-turn angles can be inconsistent with the orientation of
         # the edges calculated directly from the vertices.
         k = findfirst(isfinite, ℓ)  # if there are no finite edges, we can't check this.
-        if count(isinf, w) > 1 && !isnothing(k)
+        if isnothing(k)
+            s.symmetry isa NoSymmetry &&
+                throw(ArgumentError("NoSymmetry must have at least one finite edge"))
+            if s.symmetry isa CyclicSymmetry
+                @warn "CyclicSymmetry without finite edge is underconstrained"
+            end
+        elseif count(isinf, w) > 1
             # angle of segments inferred from one finite segment and left-turn angles
             α = angle(w[mod1(k+1, N)] - w[k])
             segdirs = α .+ π .* circshift(cumsum(circshift(β, -k)), k)
