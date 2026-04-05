@@ -1,119 +1,134 @@
-export draw_polygon, sc_plot
+export sc_draw!, sc_plot
 
-using StaticArrays, PyPlot
+struct LineSpec
+    xs::Vector{Float64}
+    ys::Vector{Float64}
+    style::Dict{Symbol,<:Any}
+end
+LineSpec(zs::Vector{<:Complex}, style::Dict{Symbol,<:Any}) =
+    LineSpec(real.(zs), imag.(zs), style)
 
-function draw_polygon(p::Polygon, ax; kwargs...)
-    N = Size(p.w)[1]
-    k = findfirst(idx₁ -> begin
-        idx₂ = mod1(idx₁ + 1, N)
-        isfinite(p.w[idx₁]) && isfinite(p.w[idx₂])
-    end, 1:N)
-    w = circshift(p.w, -k)
-    β = circshift(p.β, -k)
+mutable struct PlotSpec
+    lines::Vector{LineSpec}
+    extent::Float64  # xlim = ylim = (-extent, extent)
+end
+
+get_extent(w; enlarge_extent = 1.2, kwargs...) =
+    enlarge_extent * maximum(map(x -> isinf(x) ? 0 : max(abs(real(x)), abs(imag(x))), w))
+
+"""
+Valid keyword arguments are
+  - enlarge_extent: Factor to enlarge scene by, defaults to 1.2
+  - edge_style: Dict{Symbol, Any} specifying the style of finite edges
+  - ray_style: Dict{Symbol, Any} specifying the style of infinite rays
+"""
+function PlotSpec(poly::Polygon{N}; kwargs...) where {N}
+    extent = get_extent(poly.w; kwargs...)
+    k = findfirst(isfinite, poly.ℓ)
+    # If there is no finite edge, don't plot anything.
+    # todo: for DihedralSymmetry, infer the orientation from the symmetry axis.
+    isnothing(k) && return PlotSpec(LineSpec[], extent)
+
+    # Shift vertices so that we can start with a known orientation.
+    w = circshift(poly.w, -k)
+    β = circshift(poly.β, -k)
     γ = angle(w[begin] - w[end]) .+ π .* cumsum(β)
-    v = [w[end]]
-    R = 10 * maximum(filter(!isinf, abs.(w)))
+    len_inf_ray = 3 * extent
+    lines = LineSpec[]
+    ray_style = get(kwargs, :ray_style, Dict{Symbol,Any}())
+    edge_style = get(kwargs, :edge_style, Dict{Symbol,Any}())
+    v = [w[end]]  # Temporary set of vertices contained in the current batch.
     for (k, wk) ∈ enumerate(w)
         if isinf(wk)
-            ax.plot(real.(v), imag.(v); kwargs...)
-            v = [v[end], v[end] + R * cis(γ[mod1(k - 1, N)])]
-            ax.plot(real.(v), imag.(v); kwargs..., linestyle = ":")
-            v = [w[mod1(k + 1, N)] - R * cis(γ[k]), w[mod1(k + 1, N)]]
-            ax.plot(real.(v), imag.(v); kwargs..., linestyle = ":")
+            # Commit the current batch.
+            push!(lines, LineSpec(v, edge_style))
+            # Add the first infinite ray.
+            ray_dir = len_inf_ray * cis(γ[mod1(k - 1, N)])
+            ray = [v[end], v[end] + ray_dir]
+            push!(lines, LineSpec(ray, ray_style))
+            # Add the second infinite ray.
+            ray_dir = len_inf_ray * cis(γ[k])
+            ray = [w[mod1(k + 1, N)] - ray_dir, w[mod1(k + 1, N)]]
+            push!(lines, LineSpec(ray, ray_style))
+            # Continue with the next finite batch.
             empty!(v)
         else
             push!(v, wk)
         end
     end
-    ax.plot(real.(v), imag.(v); kwargs...)
+    # Commit the last batch.
+    push!(lines, LineSpec(v, edge_style))
+    PlotSpec(lines, extent)
 end
 
-function fill_polygon(p::Polygon, ax; color = color, kwargs...)
-    N = Size(p.w)[1]
-    k = findfirst(idx₁ -> begin
-        idx₂ = mod1(idx₁ + 1, N)
-        isfinite(p.w[idx₁]) && isfinite(p.w[idx₂])
-    end, 1:N)
-    w = circshift(p.w, -k)
-    β = circshift(p.β, -k)
-    γ = angle(w[begin] - w[end]) .+ π .* cumsum(β)
-    R = 10 * maximum(filter(!isinf, abs.(w)))
-
-    function add_draw(x, y)
-        ax.fill([x; x[1]], [y; y[1]], color; kwargs...)
-    end
-
-    kinf1 = findfirst(isinf, w)
-    if isnothing(kinf1)
-        add_draw(real.(w), imag.(w))
-    else
-        v = ComplexF64[]
-        for k = kinf1:(kinf1+N+1)
-            this = mod1(k, N)
-            next = mod1(k + 1, N)
-            prev = mod1(k - 1, N)
-            if isinf(w[this])
-                if k > kinf1
-                    push!(v, v[end] + R * cis(γ[prev]))
-                    add_draw(real.(v), imag.(v))
-                    empty!(v)
-                end
-                push!(v, w[next] - R * cis(γ[this]))
-            else
-                push!(v, w[this])
-            end
-        end
-    end
-end
-
-function sc_draw_polygon!(f, ax, poly_fill=false; color = :black, kwargs...)
+function PlotSpec(
+    f::SchwarzChristoffel;
+    rpoints = 15,
+    θpoints = 500,
+    colormap = nothing,
+    kwargs...,
+)
     N = length(f.z)
-    ws = SVector{N,ComplexF64}(sc_trafo(f, zk) for zk ∈ f.z)
-    poly = Polygon(ws, Dict(1:N .=> f.β))
-    if poly_fill
-        fill_polygon(poly, ax; color = color, kwargs...)
-    else
-        draw_polygon(poly, ax; color = color, kwargs...)
-    end
 
-    max_x = maximum(filter(!isinf, abs.(real.(poly.w))))
-    max_y = maximum(filter(!isinf, abs.(imag.(poly.w))))
-    maxrange = 1.2 * max(max_x, max_y)
-    ax.set_xlim((-maxrange, maxrange))
-    ax.set_ylim((-maxrange, maxrange))
-end
-
-function sc_plot(f, rpoints, θpoints, cmap = "Spectral", poly_fill = false; kwargs...)
     trafo(z) = sc_trafo(f, z)
 
-    fig, ax = subplots(1, 2)
-    ax[1].set_aspect("equal")
-    ax[2].set_aspect("equal")
-
-    # plot the transformation
-    colormap = get_cmap(cmap)
     num_colors = rpoints + 2
-    colors = [colormap((i - 1) / (num_colors - 1)) for i = 1:num_colors]
+    colors = if isnothing(colormap)
+        nothing
+    elseif colormap isa Symbol
+        fill(colormap, num_colors)
+    else
+        [colormap((i - 1) / (num_colors - 1)) for i = 1:num_colors]
+    end
 
-    # polygon
-    sc_draw_polygon!(f, ax[1], poly_fill; kwargs...)
-
-    for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[begin+1:end-1])
+    lines = LineSpec[]
+    for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[(begin+1):(end-1)])
         θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
         zs = cis.(θ) .* r
         ws = trafo.(zs)
-        ax[1].plot(real.(ws), imag.(ws), color = colors[i+1])
+        style = if isnothing(colors)
+            Dict{Symbol,Any}()
+        else
+            Dict(:color => colors[i+1])
+        end
+        push!(lines, LineSpec(ws, style))
     end
 
-    # center point
-    ax[1].scatter([0], [0], marker = ".", color = colors[begin])
+    # todo: avoid Polygon construction
+    # → would benefit from evaluating f along rays
+    spec = PlotSpec(Polygon(trafo.(f.z), Dict(1:N .=> f.β)))
+    prepend!(spec.lines, lines)
+    spec
+end
 
-    # prevertices
-    ax[2].scatter(real.(f.z), imag.(f.z))
-    # unit circle
-    zcirc = cispi.(range(0, 2, θpoints))
-    ax[2].plot(real.(zcirc), imag.(zcirc))
+"Backend capability probe; extensions override this."
+supports_backend(::Val) = false
 
-    display(fig)
-    close(fig)
+"Backend fallback; extensions override specific Val methods."
+_draw_lines!(::Val, spec::PlotSpec, ax; kwargs...) =
+    error("Requested plotting backend is not available.")
+_sc_plot(::Val, spec::PlotSpec, prevertices; kwargs...) =
+    error("Requested plotting backend is not available.")
+
+function backend_switch(backend_call::Function, backend::Symbol = :auto)
+    if backend === :auto
+        for b in (:makie, :plots, :pyplot)
+            if supports_backend(Val(b))
+                return backend_call(Val(b))
+            end
+        end
+        error("No supported plotting backend is loaded.")
+    else
+        return backend_call(Val(backend))
+    end
+end
+
+function sc_draw!(obj, ax; backend::Symbol = :auto, kwargs...)
+    spec = PlotSpec(obj; kwargs...)
+    return backend_switch(x -> _draw_lines!(x, spec, ax; kwargs...), backend)
+end
+
+function sc_plot(f::SchwarzChristoffel; backend::Symbol = :auto, kwargs...)
+    spec = PlotSpec(f; kwargs...)
+    return backend_switch(x -> _sc_plot(x, spec, f.z; kwargs...), backend)
 end
