@@ -1,9 +1,9 @@
 module PyPlotExt
 
-import SchwarzChristoffelDisk: _draw_lines!, _sc_plot, PlotSpec, supports_backend
-using SchwarzChristoffelDisk, PyPlot
+import SchwarzChristoffelDisk: supports_backend, _draw_lines!, _sc_plot, PlotSpec
+using PyPlot
 
-SchwarzChristoffelDisk.supports_backend(::Val{:pyplot}) = true
+supports_backend(::Val{:pyplot}) = true
 
 function _draw_lines!(::Val{:pyplot}, spec::PlotSpec, ax; kwargs...)
     ax.set_xlim((-spec.extent, spec.extent))
