@@ -102,6 +102,8 @@ function Polygon(w::AbstractVector, β_lu::Dict{Int,<:Number} = Dict{Int,Float64
 end
 # Variant wrapping left-turn angles from vector
 Polygon(w::AbstractVector, β::AbstractVector) = Polygon(w, Dict(1:length(β) .=> β))
+# Get Polygon from to Schwarz-Christoffel transformation
+Polygon(f::SchwarzChristoffel) = Polygon(map(z -> sc_trafo(f, z), f.z), f.β)
 
 function make_rotation!(w_base::SVector{B}, β_lu, ::CyclicSymmetry{R}) where {B,R}
     N = B * R
