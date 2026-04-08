@@ -1,29 +1,58 @@
-export sc_draw!, sc_plot
+export LineStyle, draw!, sc_contour!, sc_plot
+
+using ColorSchemes, Colors
+
+struct LineStyle
+    color::Union{Nothing,Any}
+    linewidth::Union{Nothing,Real}
+    linestyle::Union{Nothing,Symbol}
+    backend_options::Union{Nothing,NamedTuple}
+
+    function LineStyle(color, linewidth, linestyle, backend_options)
+        supported_linestyles = (:solid, :dash, :dot, :dashdot, :dashdotdot)
+        isnothing(linestyle) ||
+            linestyle ∈ supported_linestyles ||
+            throw(ArgumentError("Linestyle must be one of $supported_linestyles"))
+        if !isnothing(color)
+            color = parse(RGB, color)
+        end
+        new(color, linewidth, linestyle, backend_options)
+    end
+end
+LineStyle(;
+    color = nothing,
+    linewidth = nothing,
+    linestyle = nothing,
+    backend_options = nothing,
+) = LineStyle(color, linewidth, linestyle, backend_options)
 
 struct LineSpec
     xs::Vector{Float64}
     ys::Vector{Float64}
-    style::Dict{Symbol,<:Any}
+    style::LineStyle
 end
-LineSpec(zs::Vector{<:Complex}, style::Dict{Symbol,<:Any}) =
-    LineSpec(real.(zs), imag.(zs), style)
+LineSpec(zs::Vector{<:Complex}, style::LineStyle) = LineSpec(real.(zs), imag.(zs), style)
 
 mutable struct PlotSpec
     lines::Vector{LineSpec}
     extent::Float64  # xlim = ylim = (-extent, extent)
 end
 
-get_extent(w; enlarge_extent = 1.2, kwargs...) =
-    enlarge_extent * maximum(map(x -> isinf(x) ? 0 : max(abs(real(x)), abs(imag(x))), w))
+get_extent(w) = maximum(map(x -> isinf(x) ? 0 : max(abs(real(x)), abs(imag(x))), w))
 
 """
 Valid keyword arguments are
   - enlarge_extent: Factor to enlarge scene by, defaults to 1.2
-  - edge_style: Dict{Symbol, Any} specifying the style of finite edges
-  - ray_style: Dict{Symbol, Any} specifying the style of infinite rays
+  - ray_style: LineStyle specifying the style of infinite rays
+  - edge_style: LineStyle specifying the style of finite edges
 """
-function PlotSpec(poly::Polygon{N}; kwargs...) where {N}
-    extent = get_extent(poly.w; kwargs...)
+function polygon_primitives(
+    poly::Polygon{N};
+    edge_style::LineStyle = LineStyle(linestyle = :solid),
+    ray_style::LineStyle = LineStyle(linestyle = :dot),
+    enlarge_extent::Real = 1.2,
+) where {N}
+    extent = enlarge_extent * get_extent(poly.w)
     k = findfirst(isfinite, poly.ℓ)
     # If there is no finite edge, don't plot anything.
     # todo: for DihedralSymmetry, infer the orientation from the symmetry axis.
@@ -35,8 +64,6 @@ function PlotSpec(poly::Polygon{N}; kwargs...) where {N}
     γ = angle(w[begin] - w[end]) .+ π .* cumsum(β)
     len_inf_ray = 3 * extent
     lines = LineSpec[]
-    ray_style = get(kwargs, :ray_style, Dict{Symbol,Any}())
-    edge_style = get(kwargs, :edge_style, Dict{Symbol,Any}())
     v = [w[end]]  # Temporary set of vertices contained in the current batch.
     for (k, wk) ∈ enumerate(w)
         if isinf(wk)
@@ -61,44 +88,50 @@ function PlotSpec(poly::Polygon{N}; kwargs...) where {N}
     PlotSpec(lines, extent)
 end
 
-function PlotSpec(
+get_levels(levels::Integer) = range(0, 1, levels + 1)[(begin+1):end]
+get_levels(levels::AbstractVector) = collect(levels)
+
+function contour_primitives(
     f::SchwarzChristoffel;
-    rpoints = 15,
-    θpoints = 500,
-    colormap = nothing,
-    kwargs...,
+    levels::Union{Integer,AbstractVector} = 15,
+    color = nothing,
+    colorscheme::Symbol = :Spectral,
+    enlarge_extent::Real = 1.2,
+    backend_options::Union{Nothing,NamedTuple} = nothing,
 )
-    N = length(f.z)
-
-    trafo(z) = sc_trafo(f, z)
-
-    num_colors = rpoints + 2
-    colors = if isnothing(colormap)
-        nothing
-    elseif colormap isa Symbol
-        fill(colormap, num_colors)
+    rlevels = get_levels(levels)
+    num_levels = length(rlevels)
+    cscheme = colorschemes[colorscheme]
+    colors = if isnothing(color)
+        map(x -> get(cscheme, x), rlevels)
     else
-        [colormap((i - 1) / (num_colors - 1)) for i = 1:num_colors]
+        fill(parse(RGB, color), num_levels)
     end
-
     lines = LineSpec[]
-    for (i, r) ∈ enumerate(range(0, 1, rpoints + 2)[(begin+1):(end-1)])
-        θ = range(0, 2π, ceil(Int64, sqrt(r) * θpoints))
+    for (i, r) ∈ enumerate(rlevels[begin:(end-1)])
+        θ = range(0, 2π, ceil(Int64, sqrt(r) * num_levels * 50))
         zs = cis.(θ) .* r
-        ws = trafo.(zs)
-        style = if isnothing(colors)
-            Dict{Symbol,Any}()
-        else
-            Dict(:color => colors[i+1])
-        end
+        ws = map(z -> sc_trafo(f, z), zs)
+        style = LineStyle(color = colors[i], backend_options = backend_options)
         push!(lines, LineSpec(ws, style))
     end
-
     # todo: avoid Polygon construction
     # → would benefit from evaluating f along rays
-    spec = PlotSpec(Polygon(trafo.(f.z), Dict(1:N .=> f.β)))
-    prepend!(spec.lines, lines)
-    spec
+    style = LineStyle(color = colors[end], backend_options = backend_options)
+    spec = polygon_primitives(
+        Polygon(f);
+        edge_style = style,
+        ray_style = style,
+        enlarge_extent = enlarge_extent,
+    )
+    if rlevels[end] == 1
+        prepend!(spec.lines, lines)
+        spec
+    else
+        empty!(spec.lines)
+        append!(spec.lines, lines)
+        spec
+    end
 end
 
 "Backend capability probe; extensions override this."
@@ -110,25 +143,27 @@ _draw_lines!(::Val, spec::PlotSpec, ax; kwargs...) =
 _sc_plot(::Val, spec::PlotSpec, prevertices; kwargs...) =
     error("Requested plotting backend is not available.")
 
-function backend_switch(backend_call::Function, backend::Symbol = :auto)
+function auto_backend(backend::Symbol)
+    supported_backends = (:makie, :plots, :pyplot)
     if backend === :auto
-        for b in (:makie, :plots, :pyplot)
+        for b in supported_backends
             if supports_backend(Val(b))
-                return backend_call(Val(b))
+                return b
             end
         end
         error("No supported plotting backend is loaded.")
+    elseif backend ∈ supported_backends
+        return backend
     else
-        return backend_call(Val(backend))
+        throw(ArgumentError("Backend $b is not supported."))
     end
 end
 
-function sc_draw!(obj, ax; backend::Symbol = :auto, kwargs...)
-    spec = PlotSpec(obj; kwargs...)
-    return backend_switch(x -> _draw_lines!(x, spec, ax; kwargs...), backend)
-end
+draw!(poly::Polygon, ax; backend::Symbol = :auto, kwargs...) =
+    _draw_lines!(Val(auto_backend(backend)), polygon_primitives(poly; kwargs...), ax)
 
-function sc_plot(f::SchwarzChristoffel; backend::Symbol = :auto, kwargs...)
-    spec = PlotSpec(f; kwargs...)
-    return backend_switch(x -> _sc_plot(x, spec, f.z; kwargs...), backend)
-end
+sc_contour!(f::SchwarzChristoffel, ax; backend::Symbol = :auto, kwargs...) =
+    _draw_lines!(Val(auto_backend(backend)), contour_primitives(f; kwargs...), ax)
+
+sc_plot(f::SchwarzChristoffel; backend::Symbol = :auto, kwargs...) =
+    _sc_plot(Val(auto_backend(backend)), contour_primitives(f; kwargs...), f.z)
