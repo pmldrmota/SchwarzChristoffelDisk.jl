@@ -270,16 +270,3 @@ function sc_parameter_problem(poly::Polygon{N}; retries = 10, kwargs...) where {
     end
     error("Failed to solve parameter problem. Try to pass as NoSymmetry?")
 end
-
-
-"""
-Should try another solver library
-
-using NonlinearSolve
-# Define the system: f(u) = 0
-f(u, p) = u .* u .- 2  # Example: u² = 2
-u0 = [1.0, 1.0]         # Initial guess
-prob = NonlinearProblem(f, u0)
-sol = solve(prob, NewtonRaphson())
-println(sol.u)
-"""
