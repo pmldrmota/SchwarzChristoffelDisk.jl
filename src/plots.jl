@@ -48,8 +48,8 @@ Valid keyword arguments are
 """
 function polygon_primitives(
     poly::Polygon{N};
-    edge_style::LineStyle = LineStyle(linestyle = :solid),
-    ray_style::LineStyle = LineStyle(linestyle = :dot),
+    edge_style::LineStyle = LineStyle(linestyle = :solid, color = :black),
+    ray_style::LineStyle = LineStyle(linestyle = :solid, color = :black),
     enlarge_extent::Real = 1.2,
 ) where {N}
     extent = enlarge_extent * get_extent(poly.w)
