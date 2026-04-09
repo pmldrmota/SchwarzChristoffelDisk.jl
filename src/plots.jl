@@ -91,6 +91,41 @@ end
 get_levels(levels::Integer) = range(0, 1, levels + 1)[(begin+1):end]
 get_levels(levels::AbstractVector) = collect(levels)
 
+"""Recursive refinement of contour line
+
+Samples the polar-angle mid-point until the distance between adjacent mapped
+points is below `min_distance`.
+"""
+function refine_segment(
+    f::SchwarzChristoffel,
+    start::Pair{<:Real,<:Complex},
+    finish::Pair{<:Real,<:Complex},
+    min_distance::Real,
+    radius::Real,
+)
+    if abs(finish.second - start.second) ≤ min_distance
+        return [start, finish]
+    end
+    θ_mid = (start.first + finish.first) / 2
+    mid = Pair(θ_mid, sc_trafo(f, cis(θ_mid) * radius))
+    return [
+        refine_segment(f, start, mid, min_distance, radius);
+        refine_segment(f, mid, finish, min_distance, radius)[2:end]
+    ]
+end
+
+function sample_contour(f::SchwarzChristoffel, min_distance::Real, radius::Real)
+    num_init = 8
+    points = map(θ -> Pair(θ, sc_trafo(f, cis(θ) * radius)), range(0, 2π, num_init))
+    vcat(
+        points[1],
+        [
+            refine_segment(f, points[i], points[i+1], min_distance, radius)[2:end] for
+            i ∈ 1:(num_init-1)
+        ]...,
+    )
+end
+
 function contour_primitives(
     f::SchwarzChristoffel;
     levels::Union{Integer,AbstractVector} = 15,
@@ -99,6 +134,7 @@ function contour_primitives(
     enlarge_extent::Real = 1.2,
     backend_options::Union{Nothing,NamedTuple} = nothing,
 )
+    poly = Polygon(f)
     rlevels = get_levels(levels)
     num_levels = length(rlevels)
     cscheme = colorschemes[colorscheme]
@@ -108,30 +144,30 @@ function contour_primitives(
         fill(parse(RGB, color), num_levels)
     end
     lines = LineSpec[]
-    for (i, r) ∈ enumerate(rlevels[begin:(end-1)])
-        θ = range(0, 2π, ceil(Int64, sqrt(r) * num_levels * 50))
-        zs = cis.(θ) .* r
-        ws = map(z -> sc_trafo(f, z), zs)
+    min_distance = get_extent(poly.w) / 50
+    for (i, r) ∈ enumerate(filter(<(1), rlevels))
+        contour = sample_contour(f, min_distance, r)
         style = LineStyle(color = colors[i], backend_options = backend_options)
-        push!(lines, LineSpec(ws, style))
+        push!(lines, LineSpec(map(p -> p.second, contour), style))
     end
     # todo: avoid Polygon construction
-    # → would benefit from evaluating f along rays
+    # → would benefit from evaluating f along rays (especially in polygons without
+    # finite edges)
     style = LineStyle(color = colors[end], backend_options = backend_options)
     spec = polygon_primitives(
-        Polygon(f);
+        poly;
         edge_style = style,
         ray_style = style,
         enlarge_extent = enlarge_extent,
     )
     if rlevels[end] == 1
         prepend!(spec.lines, lines)
-        spec
     else
+        # hacky way of preserving the extent as if the outline was drawn.
         empty!(spec.lines)
         append!(spec.lines, lines)
-        spec
     end
+    spec
 end
 
 "Backend capability probe; extensions override this."
