@@ -5,6 +5,10 @@ using StaticArrays, FastGaussQuadrature
 #: Number of points for Gauss quadrature
 const NQUAD = 7
 
+struct StalledException <: Exception
+    message::String
+end
+
 mutable struct SchwarzChristoffel{Z,B,C,QC}
     z::Z
     β::B
@@ -95,8 +99,16 @@ function sc_compound_gauss_jacobi(f, z0, zb, kb)
     drem = abs(z0 - zb)
 
     for _ ∈ 1:100
-        # maximum integration interval (capped at small distance)
-        dmax = max(2 * distance_to_singularity(f, zb, kb), 1e-3)
+        # maximum integration interval
+        dmax = 2 * distance_to_singularity(f, zb, kb)
+        if iszero(dmax)
+            # This error is thrown if due to finite numerical precision, the
+            # distance to the closest singularity is smaller than the floating
+            # point resolution of the prevertex coordinates.
+            # The solution would be to parameterise everything in terms of the
+            # difference to a fixed "anchor", taken to be the closest singularity.
+            throw(StalledException("Compound Gauss-Jacobi integration stalled"))
+        end
 
         # integration start point
         za = zb + min(drem, dmax) * (z0 - zb) / drem
