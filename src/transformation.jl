@@ -84,20 +84,17 @@ end
 """Compound Gauss-(Jacobi) integral
 
 `zb` may be a singular point (index `kb`). If it is not, then pass `kb=nothing`.
-`z0` is not allowed to be a singular point and must be within the section of
-the disk enclosed by the connections from the nearest singularities to the origin.
+The other integration limit is always the origin.
 """
-function sc_compound_gauss_jacobi(f, z0, zb, kb)
-    @assert !isnan(z0) && !isnan(zb) "sc_compound_gauss_jacobi got NaN input"
-    # integrate from z0 to zb
+function sc_compound_gauss_jacobi(f, zb, kb)
+    isnan(zb) && throw(ArgumentError("sc_compound_gauss_jacobi got NaN input"))
+
     integral = zero(zb)
-    if zb ≈ z0
+    if iszero(zb)
         return integral
     end
 
-    # remaining distance
-    drem = abs(z0 - zb)
-
+    drem = abs(zb)  # remaining distance
     for _ ∈ 1:100
         # maximum integration interval
         dmax = 2 * distance_to_singularity(f, zb, kb)
@@ -111,7 +108,7 @@ function sc_compound_gauss_jacobi(f, z0, zb, kb)
         end
 
         # integration start point
-        za = zb + min(drem, dmax) * (z0 - zb) / drem
+        za = zb - min(drem, dmax) * zb / drem
         # integrate
         integral += sc_integrate(f, za, zb, kb)
 
@@ -122,21 +119,17 @@ function sc_compound_gauss_jacobi(f, z0, zb, kb)
         # use legendre quadrule from now on (if not already)
         kb = nothing
         zb = za
-        drem = abs(z0 - zb)
+        drem = abs(zb)
     end
 
-    throw(ErrorException("sc_compound_gauss_jacobi failed at ($z0,$zb,$kb); drem = $drem"))
+    error("sc_compound_gauss_jacobi failed at ($zb, $kb); drem = $drem")
 end
 
 """Integrate along segment connecting adjacent singularities `(ka, ka+1)`
 """
 function sc_segment(f, ka)
     kb = mod1(ka + 1, length(f.z))
-    # Taking the midpoint doesn't seem to be accurate close to the boundary.
-    # zhalf = (f.z[kb]+f.z[ka])/2
-    zhalf = zero(f.z[kb])
-    sc_compound_gauss_jacobi(f, zhalf, f.z[kb], kb) -
-    sc_compound_gauss_jacobi(f, zhalf, f.z[ka], ka)
+    sc_compound_gauss_jacobi(f, f.z[kb], kb) - sc_compound_gauss_jacobi(f, f.z[ka], ka)
 end
 
 """Schwarz-Christoffel transformation
