@@ -258,7 +258,7 @@ function sc_parameter_problem(poly::Polygon{N}; retries = 10, kwargs...) where {
         try
             return solve_parameter_problem(params, poly; kwargs...)
         catch e
-            if e isa DomainError
+            if e isa DomainError || e isa StalledException
                 num_tries > retries && break
                 @warn "Re-attempting parameter problem with random starting point"
                 # Due to nlsolve sometimes producing NaNs, we try a random initial parameter for luck.
